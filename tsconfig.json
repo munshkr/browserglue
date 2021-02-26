@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "allowJs": true,
-    "lib": ["es2020"],
-    "module": "commonjs",
-    "outDir": "./lib",
-    "target": "es2019"
+    "target": "es5",
+    "module": "es6",
+    "moduleResolution": "node",
+    "outDir": "./lib"
   },
   "include": [
     "./src/**/*"

@@ -1,4 +1,5 @@
+import Client from './Client';
 import Server from './Server';
 import OSCSocket from './OSCSocket';
 
-export { OSCSocket, Server };
+export { Client, Server, OSCSocket };

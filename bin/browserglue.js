@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const program = require("commander");
 const packageInfo = require("../package.json");
-const { Server } = require("../lib/index");
+const { Server } = require("../dist/browserglue.node");
 
 program
   .version(packageInfo.version)
