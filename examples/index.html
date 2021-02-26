@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>browserglue example</title>
+    </head>
+    <body>
+
+    </body>
+    <script type="text/javascript">
+        // Create WebSocket connection.
+        var dataSocket = new WebSocket('ws://localhost:8000/data/');
+
+        // Connection opened
+        dataSocket.addEventListener('open', (event) => {
+            console.log("Connected to /data");
+        });
+
+        // Listen for messages
+        dataSocket.addEventListener('message', (event) => {
+            var blob = event.data;
+            // Convert blob to text
+            blob.text().then((text) => {
+                console.log('Received message:', text);
+            })
+        });
+
+
+        // Create RPC WebSocket connection.
+        var rpcSocket = new WebSocket('ws://localhost:8000/rpc/');
+
+        // Connection opened
+        rpcSocket.addEventListener('open', (event) => {
+            console.log("Connected to /rpc");
+            console.log("Call 'echo' with param {'text':'hello there'} on RPC server");
+            rpcSocket.send(JSON.stringify({
+                'jsonrpc': '2.0',
+                'method': 'echo',
+                'params': { 'text': 'hello there' },
+                'id': 1
+            }));
+
+            console.log("Call 'log' with param {'message':[1,42,'hello there']} on RPC server");
+            rpcSocket.send(JSON.stringify({
+                'jsonrpc': '2.0',
+                'method': 'log',
+                'params': { 'message': [1,42,'hello there'] },
+                'id': 2
+            }));
+        });
+
+        // Listen for messages
+        rpcSocket.addEventListener('message', (event) => {
+            var text = event.data;
+            console.log('Received response from RPC server:', text);
+        });
+    </script>
+</html>
