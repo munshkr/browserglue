@@ -18,7 +18,7 @@ const server = new Server({
 
 server.on("listening", () => {
   // hardcoded for now...
-  server.createMapping("default", 4567);
+  server.addMapping("default", 4567);
 });
 
 server.start();

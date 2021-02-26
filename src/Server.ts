@@ -147,17 +147,17 @@ class Server {
         return this.emitter.on(event, cb);
     }
 
-    createMapping(id: string, port: number) {
-        console.log(`Create mapping ${id} to port ${port}`)
+    addMapping(id: string, port: number) {
+        console.debug(`Add mapping '${id}' to port ${port}`)
         const oscSocket = new OSCSocket({ port });
 
         oscSocket.on("listening", () => {
             this.oscSockets[id] = oscSocket;
         })
 
-        oscSocket.on("quit", () => {
-            this.removeMapping(id);
-        })
+        // oscSocket.on("quit", () => {
+        //     this.removeMapping(id);
+        // })
 
         oscSocket.on("message", (data) => {
             // Broadcast message to all subscribed clients
@@ -173,6 +173,7 @@ class Server {
     }
 
     removeMapping(id: string) {
+        console.debug(`Remove mapping '${id}'`)
         const oscSocket = this.oscSockets[id];
         if (oscSocket) {
             oscSocket.stop();
