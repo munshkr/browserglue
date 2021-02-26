@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "start": "tsc-watch --onSuccess 'node bin/browserglue.js'",
     "lint": "tslint -p tsconfig.json",
     "test": "exit 0"
   },
