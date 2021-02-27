@@ -14,7 +14,7 @@
   "scripts": {
     "build": "webpack",
     "start": "webpack --watch",
-    "lint": "tslint -p tsconfig.json",
+    "lint": "eslint",
     "test": "exit 0"
   },
   "bin": {
@@ -23,8 +23,13 @@
   "devDependencies": {
     "@types/node": "^14.14.27",
     "@types/ws": "^7.4.0",
+    "@typescript-eslint/eslint-plugin": "^4.15.2",
+    "@typescript-eslint/parser": "^4.15.2",
+    "eslint": "^7.20.0",
+    "eslint-config-prettier": "^8.1.0",
+    "eslint-plugin-jsdoc": "^32.2.0",
+    "eslint-plugin-prefer-arrow": "^1.2.3",
     "ts-loader": "^8.0.17",
-    "tslint": "^6.1.3",
     "typescript": "^4.1.5",
     "webpack": "^5.24.2",
     "webpack-cli": "^4.5.0"
