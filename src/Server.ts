@@ -1,6 +1,5 @@
 import * as WebSocket from 'ws';
 import * as http from 'http';
-import { URL } from 'url';
 import OSCSocket from './OSCSocket';
 import { JSONRPCRequest, JSONRPCServer, isJSONRPCRequest } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
@@ -12,16 +11,30 @@ type ServerOptions = {
 
 type EchoParams = { text: string };
 type LogParams = { message: any };
+type AddMappingParams = { id: string, port: number };
+type RemoveMappingParams = { id: string };
 
-const buildRPCServer = () => {
+const buildRPCServer = (server: Server) => {
     // Create JSON-RPC server
-    const server = new JSONRPCServer();
+    const rpcServer = new JSONRPCServer();
 
     // Define RPC methods
-    server.addMethod("echo", ({ text }: EchoParams) => text);
-    server.addMethod("log", ({ message }: LogParams) => console.log(message));
+    rpcServer.addMethod("echo", ({ text }: EchoParams) => text);
+    rpcServer.addMethod("log", ({ message }: LogParams) => console.log(message));
 
-    return server;
+    rpcServer.addMethod("addMapping", ({ id, port }: AddMappingParams) => {
+        server.addMapping(id, port);
+    })
+
+    rpcServer.addMethod("removeMapping", ({ id }: RemoveMappingParams) => {
+        server.removeMapping(id);
+    })
+
+    rpcServer.addMethod("listMappings", () => {
+        return server.listMappings();
+    })
+
+    return rpcServer;
 }
 
 class Server {
@@ -63,7 +76,7 @@ class Server {
         });
 
         // Create and setup JSON-RPC server
-        const rpcServer = buildRPCServer();
+        const rpcServer = buildRPCServer(this);
         rpcWss.on('connection', (ws, _req) => {
             console.debug('[rpc] connection')
 
@@ -81,6 +94,7 @@ class Server {
                 if (!isJSONRPCRequest(parsedMessage)) {
                     ws.send(JSON.stringify({ 'code': -32700, 'message': 'Parse error', 'data': 'Invalid request' }))
                 }
+
                 const req: JSONRPCRequest = parsedMessage;
                 const res = await rpcServer.receive(req)
                 ws.send(JSON.stringify(res));
@@ -179,6 +193,12 @@ class Server {
             oscSocket.stop();
             delete this.oscSockets[id];
         }
+    }
+
+    listMappings() {
+        return Object.entries(this.oscSockets).map(([id, socket]) => (
+            [id, socket.port]
+        ));
     }
 }
 
