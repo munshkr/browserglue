@@ -37,6 +37,7 @@
   "dependencies": {
     "commander": "^7.0.0",
     "events": "^3.2.0",
+    "isomorphic-ws": "^4.0.1",
     "json-rpc-2.0": "^0.2.15",
     "ws": "^7.4.3"
   },
