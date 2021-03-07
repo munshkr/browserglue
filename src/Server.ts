@@ -11,8 +11,8 @@ type ServerOptions = {
 
 type EchoParams = { text: string };
 type LogParams = { message: any };
-type AddMappingParams = { id: string, port: number };
-type RemoveMappingParams = { id: string };
+type AddParams = { port: number };
+type RemoveParams = { port: number };
 
 const buildRPCServer = (server: Server) => {
   // Create JSON-RPC server
@@ -22,16 +22,20 @@ const buildRPCServer = (server: Server) => {
   rpcServer.addMethod("echo", ({ text }: EchoParams) => text);
   rpcServer.addMethod("log", ({ message }: LogParams) => console.log(message));
 
-  rpcServer.addMethod("addMapping", ({ id, port }: AddMappingParams) => {
-    server.addMapping(id, port);
+  rpcServer.addMethod("addSocket", ({ port }: AddParams) => {
+    server.addSocket(port);
   })
 
-  rpcServer.addMethod("removeMapping", ({ id }: RemoveMappingParams) => {
-    server.removeMapping(id);
+  rpcServer.addMethod("removeSocket", ({ port }: RemoveParams) => {
+    server.removeSocket(port);
   })
 
-  rpcServer.addMethod("listMappings", () => {
-    return server.listMappings();
+  rpcServer.addMethod("removeAllSockets", () => {
+    server.removeAllSockets();
+  })
+
+  rpcServer.addMethod("listSockets", () => {
+    return server.listSockets();
   })
 
   return rpcServer;
@@ -62,16 +66,20 @@ class Server {
 
     dataWss.on('connection', (ws, _req) => {
       console.debug('[data] connection')
+
       // messages from client ignored for now...
       // ws.on('message', (message) => {
       //   console.log('[ws] received: %s', message);
       // });
+
       ws.on('error', (err) => {
         console.debug('[data] client error:', err)
-      })
+      });
+
       ws.on('close', () => {
         console.debug('[data] client closed');
-      })
+      });
+
       this.emitter.emit('data-connection');
     });
 
@@ -96,7 +104,7 @@ class Server {
         }
 
         const req: JSONRPCRequest = parsedMessage;
-        const res = await rpcServer.receive(req)
+        const res = await rpcServer.receive(req);
         ws.send(JSON.stringify(res));
       });
 
@@ -110,14 +118,17 @@ class Server {
 
       this.emitter.emit('rpc-connection');
     });
+
     rpcWss.on('listening', () => {
       console.debug('[rpc] listening')
       this.emitter.emit('rpc-listening');
     });
+
     rpcWss.on('close', () => {
       console.log('[rpc] closed');
       this.emitter.emit('rpc-close');
     });
+
     rpcWss.on('error', () => {
       console.log('[rpc] error');
       this.emitter.emit('rpc-error');
@@ -144,10 +155,12 @@ class Server {
       console.debug('[server] listening')
       this.emitter.emit('listening');
     });
+
     server.on('close', () => {
       console.log('[server] closed');
       this.emitter.emit('close');
     });
+
     server.on('error', () => {
       console.log('[server] error');
       this.emitter.emit('error');
@@ -161,9 +174,10 @@ class Server {
     return this.emitter.on(event, cb);
   }
 
-  addMapping(id: string, port: number) {
-    console.debug(`Add mapping '${id}' to port ${port}`)
+  addSocket(port: number) {
+    console.debug(`Add socket ${port}`)
     const socket = dgram.createSocket('udp4');
+    const id = `udp:${port}`
 
     socket.on('listening', () => {
       const address = socket.address();
@@ -195,7 +209,8 @@ class Server {
     });
   }
 
-  removeMapping(id: string) {
+  removeSocket(port: number) {
+    const id = `udp:${port}`;
     console.debug(`Remove mapping '${id}'`)
     const socket = this.sockets[id];
     if (socket) {
@@ -204,7 +219,12 @@ class Server {
     }
   }
 
-  listMappings(): string[] {
+  removeAllSockets(): void {
+    Object.values(this.sockets).forEach(socket => socket.close());
+    this.sockets = {};
+  }
+
+  listSockets(): string[] {
     return Object.keys(this.sockets);
   }
 }
