@@ -108,6 +108,10 @@ class Client {
     return this._call("removeAllSockets");
   }
 
+  listSockets(): PromiseLike<string[]> {
+    return this._call("listSockets");
+  }
+
   send(port: number, message: any): Client {
     this._call("send", { port, message });
     return this;

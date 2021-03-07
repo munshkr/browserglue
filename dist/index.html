@@ -13,21 +13,35 @@
     <script type="text/javascript">
         var client = new browserglue.Client('ws://localhost:8000');
 
-        console.log("add socket udp:13455")
+        console.log("Add socket udp:13455")
         client.addSocket(13455).then(socket => {
             // Handle messages
             socket.on(message => {
-                console.log("message from udp:13455", message);
+                console.log("Message from udp:13455", message);
             });
 
             // Remove socket after 5 seconds
-            setTimeout(() => client.removeSocket(13455), 5000);
+            setTimeout(async () => {
+                console.log("Remove socket udp:13455");
+                client.removeSocket(13455);
+                const sockets = await client.listSockets();
+                console.log("Current sockets:", sockets);
+            }, 5000);
 
             // Remove all sockets after 7 seconds
-            setTimeout(() => client.removeAllSockets(), 2000);
+            setTimeout(async () => {
+                console.log("Remove *all* sockets");
+                client.removeAllSockets();
+                const sockets = await client.listSockets();
+                console.log("Current sockets:", sockets);
+            }, 7000);
         });
 
         // Add another socket
+        console.log("Add socket udp:13459")
         client.addSocket(13459);
+
+        // List all sockets
+        client.listSockets().then(sockets => console.log("Current sockets:", sockets));
     </script>
 </html>
