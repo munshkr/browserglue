@@ -15,12 +15,13 @@
     "build": "webpack",
     "start": "webpack --watch",
     "lint": "eslint",
-    "test": "exit 0"
+    "test": "jest"
   },
   "bin": {
     "browserglue": "./bin/browserglue.js"
   },
   "devDependencies": {
+    "@types/jest": "^26.0.20",
     "@types/node": "^14.14.27",
     "@types/ws": "^7.4.0",
     "@typescript-eslint/eslint-plugin": "^4.15.2",
@@ -29,6 +30,8 @@
     "eslint-config-prettier": "^8.1.0",
     "eslint-plugin-jsdoc": "^32.2.0",
     "eslint-plugin-prefer-arrow": "^1.2.3",
+    "jest": "^26.6.3",
+    "ts-jest": "^26.5.3",
     "ts-loader": "^8.0.17",
     "typescript": "^4.1.5",
     "webpack": "^5.24.2",

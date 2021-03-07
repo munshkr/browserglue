@@ -4,7 +4,7 @@
     "target": "es5",
     "module": "es6",
     "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "outDir": "./lib"
   },
   "include": [
