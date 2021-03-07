@@ -2,7 +2,8 @@ import { JSONRPCClient } from 'json-rpc-2.0';
 import WebSocket from 'isomorphic-ws';
 
 type ClientOptions = {
-  autoReconnect?: boolean
+  connect?: boolean;
+  autoReconnect?: boolean;
 }
 
 type QueueItem = {
@@ -14,6 +15,7 @@ class Client {
   _url: string;
   _autoReconnect: boolean;
 
+  _started: boolean;
   _connected: boolean;
   _ws: WebSocket;
   _reconnectTimeout: NodeJS.Timeout;
@@ -23,9 +25,9 @@ class Client {
   constructor(url: string = 'ws://localhost:8000', { autoReconnect }: ClientOptions = { autoReconnect: true }) {
     this._url = url;
     this._autoReconnect = autoReconnect;
-    this._connected = false;
 
-    this._connect();
+    this._started = false;
+    this._connected = false;
   }
 
   get url(): string {
@@ -34,6 +36,26 @@ class Client {
 
   get connected(): boolean {
     return this._connected;
+  }
+
+  get autoReconnect(): boolean {
+    return this._autoReconnect;
+  }
+
+  set autoReconnect(newValue: boolean) {
+    this._autoReconnect = newValue;
+  }
+
+  connect(): void {
+    this._started = true;
+    return this._connect();
+  }
+
+  disconnect(): void {
+    this._started = false;
+    if (this._connected) {
+      this._ws.close();
+    }
   }
 
   addMapping(id: string, port: number) {
@@ -100,7 +122,9 @@ class Client {
 
       this._connected = false;
       this._isReconnecting = false;
-      this._reconnect();
+      if (this._started) {
+        this._reconnect();
+      }
     };
 
     ws.onclose = () => {
@@ -108,7 +132,9 @@ class Client {
 
       this._connected = false;
       this._isReconnecting = false;
-      this._reconnect();
+      if (this._started) {
+        this._reconnect();
+      }
     };
   }
 
