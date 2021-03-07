@@ -12,19 +12,19 @@ type QueueItem = {
 }
 
 class Client {
-  _url: string;
-  _autoReconnect: boolean;
+  autoReconnect: boolean;
 
-  _started: boolean;
-  _connected: boolean;
-  _ws: WebSocket;
-  _reconnectTimeout: NodeJS.Timeout;
-  _queue: QueueItem[];
-  _isReconnecting: boolean;
+  protected _url: string;
+  protected _started: boolean;
+  protected _connected: boolean;
+  protected _ws: WebSocket;
+  protected _queue: QueueItem[];
+  protected _reconnectTimeout: NodeJS.Timeout;
+  protected _isReconnecting: boolean;
 
   constructor(url: string = 'ws://localhost:8000', { autoReconnect }: ClientOptions = { autoReconnect: true }) {
     this._url = url;
-    this._autoReconnect = autoReconnect;
+    this.autoReconnect = autoReconnect;
 
     this._started = false;
     this._connected = false;
@@ -38,12 +38,8 @@ class Client {
     return this._connected;
   }
 
-  get autoReconnect(): boolean {
-    return this._autoReconnect;
-  }
-
-  set autoReconnect(newValue: boolean) {
-    this._autoReconnect = newValue;
+  get sockets(): string[] {
+    return [];
   }
 
   connect(): void {
@@ -58,15 +54,15 @@ class Client {
     }
   }
 
-  addMapping(id: string, port: number) {
+  add(id: string, port: number) {
 
   }
 
-  removeMapping(id: string) {
+  remove(id: string) {
 
   }
 
-  listMappings() {
+  removeAll(): void {
 
   }
 
@@ -78,7 +74,7 @@ class Client {
 
   }
 
-  on(id: string, cb: (message: Object) => void) {
+  on(type: string, cb: (message: Object) => void) {
 
   }
 
