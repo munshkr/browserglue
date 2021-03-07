@@ -1,6 +1,6 @@
 import * as WebSocket from 'ws';
+import * as dgram from 'dgram';
 import * as http from 'http';
-import OSCSocket from './OSCSocket';
 import { JSONRPCRequest, JSONRPCServer, isJSONRPCRequest } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
 
@@ -42,14 +42,14 @@ class Server {
   port: number;
   emitter: EventEmitter;
   dataWss: WebSocket.Server;
-  oscSockets: { [id: string]: OSCSocket };
+  sockets: { [id: string]: dgram.Socket };
 
   constructor({ host, port }: ServerOptions = { host: 'localhost', port: 8000 }) {
     this.host = host;
     this.port = port;
 
     this.emitter = new EventEmitter();
-    this.oscSockets = {};
+    this.sockets = {};
   }
 
   start() {
@@ -163,19 +163,25 @@ class Server {
 
   addMapping(id: string, port: number) {
     console.debug(`Add mapping '${id}' to port ${port}`)
-    const oscSocket = new OSCSocket({ port });
+    const socket = dgram.createSocket('udp4');
 
-    oscSocket.on("listening", () => {
-      this.oscSockets[id] = oscSocket;
+    socket.on('listening', () => {
+      const address = socket.address();
+      console.log(`[udp] server listening ${address.address}:${address.port}`);
+      this.sockets[id] = socket;
     })
 
-    // oscSocket.on("quit", () => {
-    //     this.removeMapping(id);
-    // })
+    socket.on('error', (err) => {
+      console.log(`[udp] server error:\n${err.stack}`);
+      socket.close();
+      // TODO: Reject promise with error
+    });
 
-    oscSocket.on("message", (data) => {
+    socket.on('message', (msg, rinfo) => {
+      console.log(`[udp] server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
+
       // Broadcast message to all subscribed clients
-      const payload = JSON.stringify({ id, data });
+      const payload = JSON.stringify({ id, data: msg });
       this.dataWss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(payload);
@@ -183,22 +189,23 @@ class Server {
       })
     })
 
-    oscSocket.start();
+    socket.bind({
+      address: '0.0.0.0',
+      port
+    });
   }
 
   removeMapping(id: string) {
     console.debug(`Remove mapping '${id}'`)
-    const oscSocket = this.oscSockets[id];
-    if (oscSocket) {
-      oscSocket.stop();
-      delete this.oscSockets[id];
+    const socket = this.sockets[id];
+    if (socket) {
+      socket.close();
+      delete this.sockets[id];
     }
   }
 
-  listMappings() {
-    return Object.entries(this.oscSockets).map(([id, socket]) => (
-      [id, socket.port]
-    ));
+  listMappings(): string[] {
+    return Object.keys(this.sockets);
   }
 }
 
