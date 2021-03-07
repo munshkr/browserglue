@@ -1,6 +1,6 @@
-import * as WebSocket from 'ws';
-import * as dgram from 'dgram';
-import * as http from 'http';
+import WebSocket from 'ws';
+import dgram from 'dgram';
+import http from 'http';
 import { JSONRPCRequest, JSONRPCServer, isJSONRPCRequest } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
 
