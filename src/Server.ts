@@ -182,10 +182,14 @@ class Server {
 
   removeSocket(port: number): boolean {
     const id = `udp:${port}`;
-    console.debug(`Remove mapping '${id}'`)
     const socket = this.sockets[id];
     if (socket) {
-      socket.close();
+      console.debug(`Remove socket ${id}`);
+      try {
+        socket.close();
+      } catch (err) {
+        console.warn("Socket is already closed? Clean up", err, JSON.stringify(socket));
+      }
       delete this.sockets[id];
       return true;
     }
@@ -193,9 +197,10 @@ class Server {
   }
 
   removeAllSockets(): void {
-    Object.values(this.sockets).forEach((socket, index) => {
-      socket.close();
-      delete this.sockets[index];
+    console.log("Remove all sockets");
+    Object.keys(this.sockets).forEach((id) => {
+      const port = parseInt(id.split(':')[1]);
+      this.removeSocket(port);
     });
   }
 

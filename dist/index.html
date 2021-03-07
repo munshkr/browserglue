@@ -12,16 +12,19 @@
     <script src="browserglue.js"></script>
     <script type="text/javascript">
         var client = new browserglue.Client('ws://localhost:8000');
-        window.client = client;
 
+        console.log("add socket udp:13455")
         client.addSocket(13455).then(socket => {
             // Handle messages
             socket.on(message => {
-                console.log("from 13455:", message);
+                console.log("message from udp:13455", message);
             });
 
             // Remove socket after 5 seconds
             setTimeout(() => client.removeSocket(13455), 5000);
+
+            // Remove all sockets after 7 seconds
+            setTimeout(() => client.removeAllSockets(), 2000);
         });
 
         // Add another socket

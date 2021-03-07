@@ -105,7 +105,7 @@ class Client {
   }
 
   removeAllSockets(): PromiseLike<void> {
-    return this._call("removeAll");
+    return this._call("removeAllSockets");
   }
 
   send(port: number, message: any): Client {
