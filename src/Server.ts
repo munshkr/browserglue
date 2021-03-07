@@ -2,6 +2,7 @@ import WebSocket from 'ws';
 import dgram from 'dgram';
 import express from 'express';
 import bodyParser from 'body-parser';
+import cors from 'cors';
 import { JSONRPCServer } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
 
@@ -83,7 +84,12 @@ class Server {
     });
 
     const app = express();
+
     app.use(bodyParser.json());
+
+    // Allow RPC requests from anywhere
+    // TODO: Maybe allow CORS only on some trusted hosts specified by the user?
+    app.use(cors());
 
     // Create and setup JSON-RPC server
     const rpcServer = buildRPCServer(this);
