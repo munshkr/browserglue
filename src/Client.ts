@@ -74,12 +74,14 @@ class Client {
     return this._call("removeAll");
   }
 
-  send(port: number, message: any): Promise<void> {
-    return this._call("send", { port, message });
+  send(port: number, message: any): Client {
+    this._call("send", { port, message });
+    return this;
   }
 
-  broadcast(message: any): Promise<void> {
-    return this._call("broadcast", { message });
+  broadcast(message: any): Client {
+    this._call("broadcast", { message });
+    return this;
   }
 
   on(type: string, cb: (message: Object) => void): Client {
@@ -100,18 +102,18 @@ class Client {
       this._queue.forEach((msg, index) => {
         const { cmd, args, resolve, reject } = msg;
 
-
+        // TODO: Handle queue items
         // switch (msg.cmd) {
-        //   case 'message':
-        //     this.send(q.payload);
-
+        //   case 'send':
+        //     const payload = { ... }
+        //     this.ws.send(JSON.stringify(payload));
         //     break;
-
         //   default:
+        //     // TODO: Raise error?
         //     break;
         // }
 
-        // remove queue
+        // Remove queue item
         delete this._queue[index];
       });
     }
@@ -132,6 +134,11 @@ class Client {
 
       this._runQueue();
     };
+
+    // ws.onmessage = (event) => {
+    //   const { data } = event;
+    //   // TODO ...
+    // }
 
     ws.onerror = err => {
       console.error('Unable connect to the server:', err.error);
