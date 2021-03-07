@@ -14,15 +14,17 @@
         var client = new browserglue.Client('ws://localhost:8000');
         window.client = client;
 
-        const socket1 = client.addSocket(13455);
-        const socket2 = client.addSocket(13459);
+        client.addSocket(13455).then(socket => {
+            // Handle messages
+            socket.on(message => {
+                console.log("from 13455:", message);
+            });
 
-        socket1.on(message => {
-            console.log("from 13455:", message);
-        })
+            // Remove socket after 5 seconds
+            setTimeout(() => client.removeSocket(13455), 5000);
+        });
 
-        setTimeout(() => {
-            client.removeSocket(13455);
-        }, 5000);
+        // Add another socket
+        client.addSocket(13459);
     </script>
 </html>
