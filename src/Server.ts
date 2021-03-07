@@ -140,7 +140,10 @@ class Server {
     return this.emitter.on(event, cb);
   }
 
-  addSocket(port: number) {
+  addSocket(port: number): boolean {
+    // If socket already exists, return false
+    if (Object.keys(this.sockets).includes(`udp:${port}`)) return false;
+
     console.debug(`Add socket ${port}`)
     const socket = dgram.createSocket('udp4');
     const id = `udp:${port}`
@@ -173,21 +176,27 @@ class Server {
       address: '0.0.0.0',
       port
     });
+
+    return true;
   }
 
-  removeSocket(port: number) {
+  removeSocket(port: number): boolean {
     const id = `udp:${port}`;
     console.debug(`Remove mapping '${id}'`)
     const socket = this.sockets[id];
     if (socket) {
       socket.close();
       delete this.sockets[id];
+      return true;
     }
+    return false;
   }
 
   removeAllSockets(): void {
-    Object.values(this.sockets).forEach(socket => socket.close());
-    this.sockets = {};
+    Object.values(this.sockets).forEach((socket, index) => {
+      socket.close();
+      delete this.sockets[index];
+    });
   }
 
   listSockets(): string[] {
