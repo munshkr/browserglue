@@ -1,5 +1,7 @@
 # browserglue
 
+![status](https://github.com/munshkr/browserglue/actions/workflows/main.yml/badge.svg)
+
 Exposes multiple OSC connections to the browser through WebSockets
 
 *Work in progress*
