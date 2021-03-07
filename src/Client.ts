@@ -1,5 +1,7 @@
 import { JSONRPCClient } from 'json-rpc-2.0';
 import WebSocket from 'isomorphic-ws';
+import { EventEmitter } from 'events';
+import Socket from './Socket';
 
 type ClientOptions = {
   connect?: boolean;
@@ -7,8 +9,10 @@ type ClientOptions = {
 }
 
 type QueueItem = {
-  type: string;
-  payload: any;
+  cmd: string;
+  args: { [name: string]: any };
+  resolve: Function;
+  reject: Function;
 }
 
 class Client {
@@ -21,13 +25,15 @@ class Client {
   protected _queue: QueueItem[];
   protected _reconnectTimeout: NodeJS.Timeout;
   protected _isReconnecting: boolean;
+  protected _emitter: EventEmitter;
 
   constructor(url: string = 'ws://localhost:8000', { autoReconnect }: ClientOptions = { autoReconnect: true }) {
-    this._url = url;
     this.autoReconnect = autoReconnect;
 
+    this._url = url;
     this._started = false;
     this._connected = false;
+    this._emitter = new EventEmitter();
   }
 
   get url(): string {
@@ -42,46 +48,60 @@ class Client {
     return [];
   }
 
-  connect(): void {
+  connect(): Client {
     this._started = true;
-    return this._connect();
+    this._connect();
+    return this;
   }
 
-  disconnect(): void {
+  disconnect(): Client {
     this._started = false;
     if (this._connected) {
       this._ws.close();
     }
+    return this;
   }
 
-  add(id: string, port: number) {
-
+  addSocket(port: number): Promise<Socket> {
+    return this._call("addSocket", { port });
   }
 
-  remove(id: string) {
-
+  removeSocket(port: number): Promise<boolean> {
+    return this._call("removeSocket", { port });
   }
 
-  removeAll(): void {
-
+  removeAllSockets(): Promise<boolean> {
+    return this._call("removeAll");
   }
 
-  send(id: string, message: Object) {
-
+  send(port: number, message: any): Promise<void> {
+    return this._call("send", { port, message });
   }
 
-  broadcast(message: Object) {
-
+  broadcast(message: any): Promise<void> {
+    return this._call("broadcast", { message });
   }
 
-  on(type: string, cb: (message: Object) => void) {
+  on(type: string, cb: (message: Object) => void): Client {
+    // TODO: Use emitter to emit events on 'add', 'remove', 'change', 'connect', 'disconnect'
+    this._emitter.on(type, cb);
+    return this;
+  }
 
+  _call(cmd: string, args?: { [name: string]: any }): Promise<any> {
+    return new Promise<any>((resolve, reject) => {
+      this._queue.push({ cmd, args, resolve, reject });
+      if (this._connected) this._runQueue();
+    });
   }
 
   _runQueue() {
     if (this._queue.length) {
-      this._queue.forEach((q, index) => {
-        // switch (q.type) {
+      this._queue.forEach((msg, index) => {
+        const { cmd, args, resolve, reject } = msg;
+
+
+        // switch (msg.cmd) {
         //   case 'message':
         //     this.send(q.payload);
 
