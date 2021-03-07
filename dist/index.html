@@ -11,51 +11,18 @@
     </body>
     <script src="browserglue.js"></script>
     <script type="text/javascript">
-        // Create WebSocket connection.
-        var dataSocket = new WebSocket('ws://localhost:8000/data/');
+        var client = new browserglue.Client('ws://localhost:8000');
+        window.client = client;
 
-        // Connection opened
-        dataSocket.addEventListener('open', (event) => {
-            console.log("Connected to /data");
-        });
+        const socket1 = client.addSocket(13455);
+        const socket2 = client.addSocket(13459);
 
-        // Listen for messages
-        dataSocket.addEventListener('message', (event) => {
-            var blob = event.data;
-            // Convert blob to text
-            blob.text().then((text) => {
-                console.log('Received message:', text);
-            })
-        });
+        socket1.on(message => {
+            console.log("from 13455:", message);
+        })
 
-
-        // Create RPC WebSocket connection.
-        var rpcSocket = new WebSocket('ws://localhost:8000/rpc/');
-
-        // Connection opened
-        rpcSocket.addEventListener('open', (event) => {
-            console.log("Connected to /rpc");
-            console.log("Call 'echo' with param {'text':'hello there'} on RPC server");
-            rpcSocket.send(JSON.stringify({
-                'jsonrpc': '2.0',
-                'method': 'echo',
-                'params': { 'text': 'hello there' },
-                'id': 1
-            }));
-
-            console.log("Call 'log' with param {'message':[1,42,'hello there']} on RPC server");
-            rpcSocket.send(JSON.stringify({
-                'jsonrpc': '2.0',
-                'method': 'log',
-                'params': { 'message': [1,42,'hello there'] },
-                'id': 2
-            }));
-        });
-
-        // Listen for messages
-        rpcSocket.addEventListener('message', (event) => {
-            var text = event.data;
-            console.log('Received response from RPC server:', text);
-        });
+        setTimeout(() => {
+            client.removeSocket(13455);
+        }, 5000);
     </script>
 </html>

@@ -5,7 +5,7 @@ class Socket {
   protected _port: number;
   protected _open: boolean;
 
-  contructor(client: Client, port: number) {
+  constructor(client: Client, port: number) {
     this._client = client;
     this._port = port;
     this._open = true;

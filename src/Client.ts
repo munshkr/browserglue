@@ -15,6 +15,36 @@ type QueueItem = {
   reject: Function;
 }
 
+const buildRPCClient = (wsUrl: string): JSONRPCClient => {
+  const [scheme, hostnamePort] = wsUrl.split('://');
+  const secure = scheme == 'wss';
+  const httpScheme = secure ? 'https' : 'http';
+  const url = `${httpScheme}://${hostnamePort}/json-rpc`;
+
+  // JSONRPCClient needs to know how to send a JSON-RPC request.
+  // Tell it by passing a function to its constructor. The function must take a JSON-RPC request and send it.
+  const client = new JSONRPCClient((jsonRPCRequest) =>
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(jsonRPCRequest),
+    }).then((response) => {
+      if (response.status == 200) {
+        // Use client.receive when you received a JSON-RPC response.
+        return response
+          .json()
+          .then((jsonRPCResponse) => client.receive(jsonRPCResponse));
+      } else if (jsonRPCRequest.id) {
+        return Promise.reject(new Error(response.statusText));
+      }
+    })
+  );
+
+  return client;
+}
+
 class Client {
   autoReconnect: boolean;
 
@@ -26,6 +56,7 @@ class Client {
   protected _reconnectTimeout: NodeJS.Timeout;
   protected _isReconnecting: boolean;
   protected _emitter: EventEmitter;
+  protected _rpcClient: JSONRPCClient;
 
   constructor(url: string = 'ws://localhost:8000', { autoReconnect }: ClientOptions = { autoReconnect: true }) {
     this.autoReconnect = autoReconnect;
@@ -34,6 +65,8 @@ class Client {
     this._started = false;
     this._connected = false;
     this._emitter = new EventEmitter();
+
+    this._rpcClient = buildRPCClient(url);
   }
 
   get url(): string {
@@ -62,15 +95,16 @@ class Client {
     return this;
   }
 
-  addSocket(port: number): Promise<Socket> {
-    return this._call("addSocket", { port });
+  async addSocket(port: number): Promise<Socket> {
+    await this._call("addSocket", { port });
+    return new Socket(this, port);
   }
 
-  removeSocket(port: number): Promise<boolean> {
+  removeSocket(port: number): PromiseLike<void> {
     return this._call("removeSocket", { port });
   }
 
-  removeAllSockets(): Promise<boolean> {
+  removeAllSockets(): PromiseLike<void> {
     return this._call("removeAll");
   }
 
@@ -90,11 +124,9 @@ class Client {
     return this;
   }
 
-  _call(cmd: string, args?: { [name: string]: any }): Promise<any> {
-    return new Promise<any>((resolve, reject) => {
-      this._queue.push({ cmd, args, resolve, reject });
-      if (this._connected) this._runQueue();
-    });
+  _call(cmd: string, params?: { [name: string]: any }): PromiseLike<any> {
+    // The request() function returns a promise of the result.
+    return this._rpcClient.request(cmd, params);
   }
 
   _runQueue() {

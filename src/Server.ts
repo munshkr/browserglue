@@ -1,7 +1,8 @@
 import WebSocket from 'ws';
 import dgram from 'dgram';
-import http from 'http';
-import { JSONRPCRequest, JSONRPCServer, isJSONRPCRequest } from 'json-rpc-2.0';
+import express from 'express';
+import bodyParser from 'body-parser';
+import { JSONRPCServer } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
 
 type ServerOptions = {
@@ -45,8 +46,9 @@ class Server {
   host: string;
   port: number;
   emitter: EventEmitter;
-  dataWss: WebSocket.Server;
+  wss: WebSocket.Server;
   sockets: { [id: string]: dgram.Socket };
+  server: string;
 
   constructor({ host, port }: ServerOptions = { host: 'localhost', port: 8000 }) {
     this.host = host;
@@ -58,13 +60,10 @@ class Server {
 
   start() {
     // Create WebSockets servers for both RPC interface and data
-    const rpcWss = new WebSocket.Server({ noServer: true });
-    const dataWss = new WebSocket.Server({ noServer: true });
-    this.dataWss = dataWss;
+    const wss = new WebSocket.Server({ noServer: true });
+    this.wss = wss;
 
-    const server = http.createServer();
-
-    dataWss.on('connection', (ws, _req) => {
+    wss.on('connection', (ws, _req) => {
       console.debug('[data] connection')
 
       // messages from client ignored for now...
@@ -83,72 +82,36 @@ class Server {
       this.emitter.emit('data-connection');
     });
 
+    const app = express();
+    app.use(bodyParser.json());
+
     // Create and setup JSON-RPC server
     const rpcServer = buildRPCServer(this);
-    rpcWss.on('connection', (ws, _req) => {
-      console.debug('[rpc] connection')
 
-      ws.on('message', async (message) => {
-        // console.log('[rpc] received:', JSON.stringify(message));
-
-        let parsedMessage;
-        try {
-          parsedMessage = JSON.parse(message.toString());
-        } catch (err) {
-          ws.send(JSON.stringify({ 'code': -32700, 'message': 'Parse error', 'data': JSON.stringify(err) }));
-          return;
+    // Setup HTTP endpoint for JSON-RPC server
+    app.post("/json-rpc", (req, res) => {
+      const jsonRPCRequest = req.body;
+      // server.receive takes a JSON-RPC request and returns a promise of a JSON-RPC response.
+      rpcServer.receive(jsonRPCRequest).then((jsonRPCResponse) => {
+        if (jsonRPCResponse) {
+          res.json(jsonRPCResponse);
+        } else {
+          // If response is absent, it was a JSON-RPC notification method.
+          // Respond with no content status (204).
+          res.sendStatus(204);
         }
-
-        if (!isJSONRPCRequest(parsedMessage)) {
-          ws.send(JSON.stringify({ 'code': -32700, 'message': 'Parse error', 'data': 'Invalid request' }))
-        }
-
-        const req: JSONRPCRequest = parsedMessage;
-        const res = await rpcServer.receive(req);
-        ws.send(JSON.stringify(res));
       });
-
-      ws.on('error', (err) => {
-        console.debug('[rpc] client error:', err)
-      })
-
-      ws.on('close', () => {
-        console.debug('[rpc] client closed');
-      })
-
-      this.emitter.emit('rpc-connection');
     });
 
-    rpcWss.on('listening', () => {
-      console.debug('[rpc] listening')
-      this.emitter.emit('rpc-listening');
-    });
+    // Create HTTP server and start listening
+    const server = app.listen(this.port, this.host);
+    this.server = server;
 
-    rpcWss.on('close', () => {
-      console.log('[rpc] closed');
-      this.emitter.emit('rpc-close');
-    });
-
-    rpcWss.on('error', () => {
-      console.log('[rpc] error');
-      this.emitter.emit('rpc-error');
-    });
-
-    // Handle upgrade requests to /data or /rpc and redirect to each WS server
+    // Handle upgrade requests to WebSockets
     server.on('upgrade', (request, socket, head) => {
-      const pathname = request.url;
-
-      if (pathname === '/data/') {
-        dataWss.handleUpgrade(request, socket, head, function done(ws) {
-          dataWss.emit('connection', ws, request);
-        });
-      } else if (pathname === '/rpc/') {
-        rpcWss.handleUpgrade(request, socket, head, function done(ws) {
-          rpcWss.emit('connection', ws, request);
-        });
-      } else {
-        socket.destroy();
-      }
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
     });
 
     server.on('listening', () => {
@@ -157,17 +120,14 @@ class Server {
     });
 
     server.on('close', () => {
-      console.log('[server] closed');
+      console.debug('[server] closed');
       this.emitter.emit('close');
     });
 
     server.on('error', () => {
-      console.log('[server] error');
+      console.debug('[server] error');
       this.emitter.emit('error');
     });
-
-    console.log(`Server listening on ${this.host}:${this.port}`);
-    server.listen(this.port, this.host);
   }
 
   on(event: string, cb: (...args: any[]) => void) {
@@ -181,22 +141,22 @@ class Server {
 
     socket.on('listening', () => {
       const address = socket.address();
-      console.log(`[udp] server listening ${address.address}:${address.port}`);
+      console.debug(`[udp] socket binded at port ${address.port}`);
       this.sockets[id] = socket;
     })
 
     socket.on('error', (err) => {
-      console.log(`[udp] server error:\n${err.stack}`);
+      console.debug(`[udp] socket error:\n${err.stack}`);
       socket.close();
       // TODO: Reject promise with error
     });
 
     socket.on('message', (msg, rinfo) => {
-      console.log(`[udp] server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
+      console.debug(`[udp] socket got: ${msg} from ${rinfo.address}:${rinfo.port}`);
 
       // Broadcast message to all subscribed clients
       const payload = JSON.stringify({ id, data: msg });
-      this.dataWss.clients.forEach((client) => {
+      this.wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(payload);
         }

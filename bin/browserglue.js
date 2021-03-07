@@ -17,8 +17,10 @@ const server = new Server({
 });
 
 server.on("listening", () => {
+  console.log(`Server listening on ${server.host}:${server.port}`);
+
   // hardcoded for now...
-  server.addSocket(4567);
+  // server.addSocket(4567);
 });
 
 server.start();
