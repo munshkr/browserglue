@@ -45,30 +45,26 @@ const buildRPCClient = (wsUrl: string): JSONRPCClient => {
 }
 
 class Client {
+  readonly url: string;
   autoReconnect: boolean;
 
-  protected _url: string;
   protected _started: boolean;
   protected _connected: boolean;
+  protected _emitter: EventEmitter;
+  protected _rpcClient: JSONRPCClient;
   protected _ws: WebSocket;
   protected _reconnectTimeout: NodeJS.Timeout;
   protected _isReconnecting: boolean;
-  protected _emitter: EventEmitter;
-  protected _rpcClient: JSONRPCClient;
 
   constructor(url: string = 'ws://localhost:8000', { autoReconnect }: ClientOptions = { autoReconnect: true }) {
+    this.url = url;
     this.autoReconnect = autoReconnect;
 
-    this._url = url;
     this._started = false;
     this._connected = false;
     this._emitter = new EventEmitter();
 
     this._rpcClient = buildRPCClient(url);
-  }
-
-  get url(): string {
-    return this._url;
   }
 
   get connected(): boolean {
@@ -141,7 +137,7 @@ class Client {
   }
 
   _connect() {
-    this._ws = new WebSocket(this._url);
+    this._ws = new WebSocket(this.url);
     const ws = this._ws;
 
     // Clear timeout of reconnect
