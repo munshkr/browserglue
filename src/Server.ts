@@ -6,38 +6,54 @@ import cors from 'cors';
 import { JSONRPCServer } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
 
-type ServerOptions = {
-  host?: string,
-  port?: number
+interface Channel {
+  path: string;
+  port: number;
+  subscribedPorts: Set<number>;
 }
 
-type EchoParams = { text: string };
-type LogParams = { message: any };
-type AddParams = { port: number };
-type RemoveParams = { port: number };
+interface ServerOptions {
+  host?: string;
+  port?: number;
+}
+
+type AddChannelParams = { path: string, port: number };
+type RemoveChannelParams = { path: string };
+type SubscribePortParams = { path: string, port: number };
+type UnsubscribePortParams = { path: string, port: number };
+type UnsubscribeAllPortsParams = { path: string };
 
 const buildRPCServer = (server: Server) => {
   // Create JSON-RPC server
   const rpcServer = new JSONRPCServer();
 
   // Define RPC methods
-  rpcServer.addMethod("echo", ({ text }: EchoParams) => text);
-  rpcServer.addMethod("log", ({ message }: LogParams) => console.log(message));
-
-  rpcServer.addMethod("addSocket", ({ port }: AddParams) => {
-    server.addSocket(port);
+  rpcServer.addMethod("addChannel", ({ path, port }: AddChannelParams) => {
+    server.addChannel(path, port);
   })
 
-  rpcServer.addMethod("removeSocket", ({ port }: RemoveParams) => {
-    server.removeSocket(port);
+  rpcServer.addMethod("removeChannel", ({ path }: RemoveChannelParams) => {
+    server.removeChannel(path);
   })
 
-  rpcServer.addMethod("removeAllSockets", () => {
-    server.removeAllSockets();
+  rpcServer.addMethod("removeAllChannels", () => {
+    server.removeAllChannels();
   })
 
-  rpcServer.addMethod("listSockets", () => {
-    return server.listSockets();
+  rpcServer.addMethod("listChannels", () => {
+    return server.listChannels();
+  })
+
+  rpcServer.addMethod("subscribePort", ({ path, port }: SubscribePortParams) => {
+    return server.subscribePort(path, port);
+  });
+
+  rpcServer.addMethod("unsubscribePort", ({ path, port }: UnsubscribePortParams) => {
+    return server.unsubscribePort(path, port);
+  });
+
+  rpcServer.addMethod("unsubscribeAllPorts", ({ path }: UnsubscribeAllPortsParams) => {
+    return server.unsubscribeAllPorts(path);
   })
 
   return rpcServer;
@@ -48,7 +64,8 @@ class Server {
   port: number;
   emitter: EventEmitter;
   wss: WebSocket.Server;
-  sockets: { [id: string]: dgram.Socket };
+  channels: { [path: string]: Channel };
+  sockets: { [path: string]: dgram.Socket };
   server: string;
 
   constructor({ host, port }: ServerOptions = { host: 'localhost', port: 8000 }) {
@@ -56,6 +73,7 @@ class Server {
     this.port = port;
 
     this.emitter = new EventEmitter();
+    this.channels = {};
     this.sockets = {};
   }
 
@@ -64,13 +82,14 @@ class Server {
     const wss = new WebSocket.Server({ noServer: true });
     this.wss = wss;
 
-    wss.on('connection', (ws, _req) => {
+    wss.on('connection', (ws, req) => {
       console.debug('[data] connection')
 
       // messages from client ignored for now...
-      // ws.on('message', (message) => {
-      //   console.log('[ws] received: %s', message);
-      // });
+      ws.on('message', (message) => {
+        console.log('[ws] received: %s', message);
+        this._broadcast({ req, message });
+      });
 
       ws.on('error', (err) => {
         console.debug('[data] client error:', err)
@@ -140,18 +159,20 @@ class Server {
     return this.emitter.on(event, cb);
   }
 
-  addSocket(port: number): boolean {
+  addChannel(path: string, port: number): boolean {
     // If socket already exists, return false
-    if (Object.keys(this.sockets).includes(`udp:${port}`)) return false;
+    if (Object.keys(this.channels).includes(path)) return false;
 
-    console.debug(`Add socket ${port}`)
+    console.debug(`Add channel ${path}, receive ${port}`)
+    const newChannel: Channel = { path, port, subscribedPorts: new Set };
+    this.channels[path] = newChannel;
+
     const socket = dgram.createSocket('udp4');
-    const id = `udp:${port}`
 
     socket.on('listening', () => {
       const address = socket.address();
-      console.debug(`[udp] socket binded at port ${address.port}`);
-      this.sockets[id] = socket;
+      console.debug(`[udp] Socket binded at port ${address.port}`);
+      this.sockets[path] = socket;
     })
 
     socket.on('error', (err) => {
@@ -164,7 +185,7 @@ class Server {
       console.debug(`[udp] socket got: ${msg} from ${rinfo.address}:${rinfo.port}`);
 
       // Broadcast message to all subscribed clients
-      const payload = JSON.stringify({ id, data: msg });
+      const payload = JSON.stringify({ path, data: msg });
       this.wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(payload);
@@ -180,32 +201,54 @@ class Server {
     return true;
   }
 
-  removeSocket(port: number): boolean {
-    const id = `udp:${port}`;
-    const socket = this.sockets[id];
+  removeChannel(path: string): boolean {
+    const socket = this.sockets[path];
     if (socket) {
-      console.debug(`Remove socket ${id}`);
+      console.debug(`Remove channel ${path}`);
       try {
         socket.close();
       } catch (err) {
         console.warn("Socket is already closed? Clean up", err, JSON.stringify(socket));
       }
-      delete this.sockets[id];
+      delete this.channels[path];
       return true;
     }
     return false;
   }
 
-  removeAllSockets(): void {
-    console.log("Remove all sockets");
-    Object.keys(this.sockets).forEach((id) => {
-      const port = parseInt(id.split(':')[1]);
-      this.removeSocket(port);
+  removeAllChannels(): void {
+    console.debug("Remove all channels");
+    Object.keys(this.channels).forEach((path) => {
+      this.removeChannel(path);
     });
   }
 
-  listSockets(): string[] {
-    return Object.keys(this.sockets);
+  listChannels(): Channel[] {
+    console.debug("List all channels");
+    return Object.values(this.channels);
+  }
+
+  subscribePort(path: string, port: number): boolean {
+    if (!this.channels[path]) return false;
+    this.channels[path].subscribedPorts.add(port);
+    return true;
+  }
+
+  unsubscribePort(path: string, port: number): boolean {
+    if (!this.channels[path]) return false;
+    this.channels[path].subscribedPorts.delete(port);
+    return true;
+  }
+
+  unsubscribeAllPorts(path: string): boolean {
+    if (!this.channels[path]) return false;
+    this.channels[path].subscribedPorts.clear();
+    return true;
+  }
+
+  _broadcast(obj) {
+    // TODO: get channel path from request), then send message to all subscribed ports of that channel (if exists)
+    console.log(obj);
   }
 }
 
