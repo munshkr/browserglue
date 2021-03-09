@@ -40,8 +40,8 @@ const buildRPCServer = (server: Server) => {
     server.removeAllChannels();
   })
 
-  rpcServer.addMethod("listChannels", () => {
-    return server.listChannels();
+  rpcServer.addMethod("getChannels", () => {
+    return server.getChannels();
   })
 
   rpcServer.addMethod("subscribePort", ({ path, port }: SubscribePortParams) => {
@@ -223,8 +223,8 @@ class Server {
     });
   }
 
-  listChannels(): Channel[] {
-    console.debug("List all channels");
+  getChannels(): Channel[] {
+    console.debug("Get channels");
     return Object.values(this.channels);
   }
 
