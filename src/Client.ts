@@ -1,18 +1,17 @@
 import { JSONRPCClient } from 'json-rpc-2.0';
 import WebSocket from 'isomorphic-ws';
 import { EventEmitter } from 'events';
-import Socket from './Socket';
+import Channel from './Channel';
 
-type ClientOptions = {
+interface ClientOptions {
   connect?: boolean;
   autoReconnect?: boolean;
 }
 
-type QueueItem = {
-  cmd: string;
-  args: { [name: string]: any };
-  resolve: Function;
-  reject: Function;
+interface ServerChannel {
+  path: string;
+  port: number;
+  subscribedPorts: number[];
 }
 
 const buildRPCClient = (wsUrl: string): JSONRPCClient => {
@@ -52,7 +51,6 @@ class Client {
   protected _started: boolean;
   protected _connected: boolean;
   protected _ws: WebSocket;
-  protected _queue: QueueItem[];
   protected _reconnectTimeout: NodeJS.Timeout;
   protected _isReconnecting: boolean;
   protected _emitter: EventEmitter;
@@ -77,10 +75,6 @@ class Client {
     return this._connected;
   }
 
-  get sockets(): string[] {
-    return [];
-  }
-
   connect(): Client {
     this._started = true;
     this._connect();
@@ -95,30 +89,43 @@ class Client {
     return this;
   }
 
-  async addSocket(port: number): Promise<Socket> {
-    await this._call("addSocket", { port });
-    return new Socket(this, port);
+  async addChannel(path: string, port: number): Promise<Channel> {
+    const c: ServerChannel = await this._call("addChannel", { path, port });
+    return new Channel(this, c.path, c.port, c.subscribedPorts);
   }
 
-  removeSocket(port: number): PromiseLike<void> {
-    return this._call("removeSocket", { port });
+  removeChannel(path: string): PromiseLike<void> {
+    return this._call("removeChannel", { path });
   }
 
-  removeAllSockets(): PromiseLike<void> {
-    return this._call("removeAllSockets");
+  removeAllChannels(): PromiseLike<void> {
+    return this._call("removeAllChannels");
   }
 
-  listSockets(): PromiseLike<string[]> {
-    return this._call("listSockets");
+  async getChannels(): Promise<Channel[]> {
+    const channels: ServerChannel[] = await this._call("getChannels");
+    return channels.map((c: ServerChannel) => {
+      return new Channel(this,
+        c.path,
+        c.port,
+        c.subscribedPorts);
+    });
   }
 
-  send(port: number, message: any): Client {
-    this._call("send", { port, message });
-    return this;
+  subscribePort(path: string, port: number): PromiseLike<boolean> {
+    return this._call("subscribePort", { path, port });
   }
 
-  broadcast(message: any): Client {
-    this._call("broadcast", { message });
+  unsubscribePort(path: string, port: number): PromiseLike<boolean> {
+    return this._call("unsubscribePort", { path, port });
+  }
+
+  unsubscribeAllPorts(path: string): PromiseLike<boolean> {
+    return this._call("unsubscribeAllPorts", { path });
+  }
+
+  send(path: string, message: any): Client {
+    // TODO
     return this;
   }
 
@@ -133,28 +140,6 @@ class Client {
     return this._rpcClient.request(cmd, params);
   }
 
-  _runQueue() {
-    if (this._queue.length) {
-      this._queue.forEach((msg, index) => {
-        const { cmd, args, resolve, reject } = msg;
-
-        // TODO: Handle queue items
-        // switch (msg.cmd) {
-        //   case 'send':
-        //     const payload = { ... }
-        //     this.ws.send(JSON.stringify(payload));
-        //     break;
-        //   default:
-        //     // TODO: Raise error?
-        //     break;
-        // }
-
-        // Remove queue item
-        delete this._queue[index];
-      });
-    }
-  }
-
   _connect() {
     this._ws = new WebSocket(this._url);
     const ws = this._ws;
@@ -167,8 +152,6 @@ class Client {
     ws.onopen = () => {
       this._connected = true;
       this._isReconnecting = false;
-
-      this._runQueue();
     };
 
     // ws.onmessage = (event) => {
