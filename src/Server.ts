@@ -6,7 +6,7 @@ import cors from 'cors';
 import { JSONRPCServer } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
 
-interface Channel {
+interface ServerChannel {
   path: string;
   port: number;
   subscribedPorts: Set<number>;
@@ -64,7 +64,7 @@ class Server {
   port: number;
   emitter: EventEmitter;
   wss: WebSocket.Server;
-  channels: { [path: string]: Channel };
+  channels: { [path: string]: ServerChannel };
   sockets: { [path: string]: dgram.Socket };
   server: string;
 
@@ -164,7 +164,7 @@ class Server {
     if (Object.keys(this.channels).includes(path)) return false;
 
     console.debug(`Add channel ${path}, receive ${port}`)
-    const newChannel: Channel = { path, port, subscribedPorts: new Set };
+    const newChannel: ServerChannel = { path, port, subscribedPorts: new Set };
     this.channels[path] = newChannel;
 
     const socket = dgram.createSocket('udp4');
@@ -223,7 +223,7 @@ class Server {
     });
   }
 
-  getChannels(): Channel[] {
+  getChannels(): ServerChannel[] {
     console.debug("Get channels");
     return Object.values(this.channels);
   }
