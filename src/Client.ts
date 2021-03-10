@@ -85,9 +85,9 @@ class Client {
     return this;
   }
 
-  async addChannel(path: string, port: number): Promise<Channel> {
-    const c: ServerChannel = await this._call("addChannel", { path, port });
-    return new Channel(this, c.path, c.port, c.subscribedPorts);
+  async addChannel(path: string, port?: number, sendPort?: number): Promise<Channel> {
+    const c: ServerChannel = await this._call("addChannel", { path, port, sendPort });
+    return new Channel(this, c.path, c.subscribedPorts, c.port);
   }
 
   removeChannel(path: string): PromiseLike<void> {
@@ -103,9 +103,13 @@ class Client {
     return channels.map((c: ServerChannel) => {
       return new Channel(this,
         c.path,
-        c.port,
-        c.subscribedPorts);
+        c.subscribedPorts,
+        c.port);
     });
+  }
+
+  bindPort(path: string, port: number): PromiseLike<boolean> {
+    return this._call("bindPort", { path, port });
   }
 
   subscribePort(path: string, port: number): PromiseLike<boolean> {

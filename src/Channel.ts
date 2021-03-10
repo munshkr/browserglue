@@ -2,18 +2,18 @@ import Client from "./Client";
 
 class Channel {
   readonly path: string;
-  readonly port: number;
-  readonly subscribedPorts: number[];
 
   protected _client: Client;
+  protected _subscribedPorts: Set<number>;
+  protected _port: number;
   protected _open: boolean;
 
-  constructor(client: Client, path: string, port: number, subscribedPorts: number[]) {
+  constructor(client: Client, path: string, subscribedPorts: number[], port?: number) {
     this.path = path;
-    this.port = port;
-    this.subscribedPorts = subscribedPorts;
 
     this._client = client;
+    this._subscribedPorts = new Set(subscribedPorts);
+    this._port = port;
     this._open = true;
   }
 
@@ -23,15 +23,37 @@ class Channel {
     return true;
   }
 
-  send(message: any): boolean {
+  broadcast(message: any): boolean {
     if (!this._open) return false;
     this._client.send(this.path, message);
     return true;
   }
 
+  bindPort(port: number): boolean {
+    if (!this._open) return false;
+    const result = this._client.bindPort(this.path, port);
+    if (result) this._port = port;
+    return true;
+  }
+
   subscribePort(port: number): boolean {
     if (!this._open) return false;
-    this._client.subscribePort(this.path, port);
+    const result = this._client.subscribePort(this.path, port);
+    if (result) this._subscribedPorts.add(port);
+    return true;
+  }
+
+  unsubscribePort(port: number): boolean {
+    if (!this._open) return false;
+    const result = this._client.unsubscribePort(this.path, port);
+    if (result) this._subscribedPorts.delete(port);
+    return true;
+  }
+
+  unsubscribeAllPorts(): boolean {
+    if (!this._open) return false;
+    const result = this._client.unsubscribeAllPorts(this.path);
+    if (result) this._subscribedPorts.clear();
     return true;
   }
 

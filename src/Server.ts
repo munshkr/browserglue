@@ -8,7 +8,7 @@ import { EventEmitter } from 'events';
 
 interface ServerChannel {
   path: string;
-  port: number;
+  port?: number;
   subscribedPorts: Set<number>;
 }
 
@@ -17,8 +17,9 @@ interface ServerOptions {
   port?: number;
 }
 
-type AddChannelParams = { path: string, port: number };
+type AddChannelParams = { path: string, port?: number, sendPort?: number };
 type RemoveChannelParams = { path: string };
+type BindPortParams = { path: string, port: number };
 type SubscribePortParams = { path: string, port: number };
 type UnsubscribePortParams = { path: string, port: number };
 type UnsubscribeAllPortsParams = { path: string };
@@ -28,8 +29,8 @@ const buildRPCServer = (server: Server) => {
   const rpcServer = new JSONRPCServer();
 
   // Define RPC methods
-  rpcServer.addMethod("addChannel", ({ path, port }: AddChannelParams) => {
-    server.addChannel(path, port);
+  rpcServer.addMethod("addChannel", ({ path, port, sendPort }: AddChannelParams) => {
+    server.addChannel(path, port, sendPort);
   })
 
   rpcServer.addMethod("removeChannel", ({ path }: RemoveChannelParams) => {
@@ -42,6 +43,10 @@ const buildRPCServer = (server: Server) => {
 
   rpcServer.addMethod("getChannels", () => {
     return server.getChannels();
+  })
+
+  rpcServer.addMethod("bindPort", ({ path, port }: BindPortParams) => {
+    server.bindPort(path, port);
   })
 
   rpcServer.addMethod("subscribePort", ({ path, port }: SubscribePortParams) => {
@@ -159,12 +164,16 @@ class Server {
     return this.emitter.on(event, cb);
   }
 
-  addChannel(path: string, port: number): boolean {
+  addChannel(path: string, port?: number, sendPort?: number): boolean {
     // If socket already exists, return false
     if (Object.keys(this.channels).includes(path)) return false;
 
-    console.debug(`Add channel ${path}, receive ${port}`)
-    const newChannel: ServerChannel = { path, port, subscribedPorts: new Set };
+    console.debug(`Add channel ${path} (receive port: ${port || "none"}, send port: ${sendPort || "none"}`)
+    const newChannel: ServerChannel = {
+      path,
+      port,
+      subscribedPorts: new Set
+    };
     this.channels[path] = newChannel;
 
     const socket = dgram.createSocket('udp4');
@@ -178,7 +187,7 @@ class Server {
     socket.on('error', (err) => {
       console.debug(`[udp] socket error:\n${err.stack}`);
       socket.close();
-      // TODO: Reject promise with error
+      // TODO: Reject promise with error?
     });
 
     socket.on('message', (msg, rinfo) => {
@@ -193,10 +202,10 @@ class Server {
       })
     })
 
-    socket.bind({
-      address: '0.0.0.0',
-      port
-    });
+    // Only bind socket if port argument is present
+    if (port) {
+      this.bindPort(path, port);
+    }
 
     return true;
   }
@@ -228,20 +237,35 @@ class Server {
     return Object.values(this.channels);
   }
 
+  bindPort(path: string, port: number): boolean {
+    if (!this.channels[path]) return false;
+    const socket = this.sockets[path];
+    if (!socket) return false;
+    console.log(`Bind socket of channel ${path} to port ${port}`);
+    socket.bind({
+      address: '0.0.0.0',
+      port
+    });
+    return true;
+  }
+
   subscribePort(path: string, port: number): boolean {
     if (!this.channels[path]) return false;
+    console.log(`Subscribe port ${port} on channel ${path}`);
     this.channels[path].subscribedPorts.add(port);
     return true;
   }
 
   unsubscribePort(path: string, port: number): boolean {
     if (!this.channels[path]) return false;
+    console.log(`Unsubscribe port ${port} from channel ${path}`);
     this.channels[path].subscribedPorts.delete(port);
     return true;
   }
 
   unsubscribeAllPorts(path: string): boolean {
     if (!this.channels[path]) return false;
+    console.log(`Unsubscribe all ports from channel ${path}`);
     this.channels[path].subscribedPorts.clear();
     return true;
   }
