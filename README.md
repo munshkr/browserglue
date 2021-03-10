@@ -4,9 +4,13 @@
 
 Exposes multiple OSC connections to the browser through WebSockets
 
-*Work in progress*
+*Work in progress, design and interface is subject to change*
 
-![diagram](diagram.png)
+## Design
+
+![Diagram: OSC Apps Use Cases](docs/media/osc-apps.png)
+
+![Diagram: Internals](docs/media/internals.png)
 
 
 ## Contributing
