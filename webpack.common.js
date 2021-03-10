@@ -1,4 +1,5 @@
 const path = require("path");
+const nodeExternals = require('webpack-node-externals');
 
 const nodeConfig = {
   target: "node",
@@ -15,6 +16,7 @@ const nodeConfig = {
   resolve: {
     extensions: [".ts", ".js"],
   },
+  externals: [nodeExternals()],
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "browserglue.node.js",
