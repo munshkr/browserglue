@@ -17,6 +17,51 @@ Run `yarn docs` to build documentation.
 
 ## Design
 
+### JavaScript API
+
+```javascript
+var client = new browserglue.Client();
+
+// Add a channel that will only receive messages on port 5000
+client.addChannel("/onlyReceive", 5000).then(channel => {
+    channel.on(message => console.log("Message from /onlyReceive:", message));
+});
+// this is the same as:
+//  client.addChannel("/onlyReceive").then(channel => channel.bindPort(5000));
+
+// Add channel /sendReceive, and bind to port 5000
+client.addChannel("/sendReceive", 5000, 5001).then(channel => {
+    // Handle messages
+    channel.on(message => {
+        console.log("Message from /foo", message);
+    });
+
+    // Remove channel (close) after 10 seconds
+    setTimeout(async () => {
+        channel.close();
+
+        // Get new list of channels. You can also listen to the "change" event
+        const channels = await client.getChannels();
+        console.log("Current channels:", channels);
+    }, 10000);
+});
+
+// Add another channel, this will skip binding to a port and will only send messages to port 6001 and 6002
+client.addChannel("/onlySend").then(channel => {
+    channel.subscribePort(6001);
+    channel.subscribePort(6002);
+});
+
+// Get all channels
+client.getChannels().then(channels => console.log("Current channels:", channels));
+
+// Listen on any event in the server: change, addChannel, removeChannel,
+// bindPort, subscribePort, unsubscribePort, unsubscribeAllPorts, etc.
+client.on("addChannel", event => {
+    console.log(event);
+})
+```
+
 ### OSC Apps Supported Use Cases
 
 ![Diagram: OSC Apps Use Cases](docs/media/osc-apps.png)
