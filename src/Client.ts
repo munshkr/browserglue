@@ -124,7 +124,7 @@ class Client {
     return this._call("unsubscribeAllPorts", { path });
   }
 
-  send(path: string, message: any): Client {
+  publish(path: string, message: any): Client {
     // TODO
     return this;
   }

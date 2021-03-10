@@ -23,9 +23,9 @@ class Channel {
     return true;
   }
 
-  broadcast(message: any): boolean {
+  publish(message: any): boolean {
     if (!this._open) return false;
-    this._client.send(this.path, message);
+    this._client.publish(this.path, message);
     return true;
   }
 
@@ -57,7 +57,7 @@ class Channel {
     return true;
   }
 
-  close(): boolean {
+  remove(): boolean {
     if (!this._open) return false;
     this._open = false;
     this._client.removeChannel(this.path);

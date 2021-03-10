@@ -36,9 +36,9 @@ client.addChannel("/sendReceive", 5000, 5001).then(channel => {
         console.log("Message from /foo", message);
     });
 
-    // Remove channel (close) after 10 seconds
+    // Remove channel after 10 seconds
     setTimeout(async () => {
-        channel.close();
+        channel.remove();
 
         // Get new list of channels. You can also listen to the "change" event
         const channels = await client.getChannels();
@@ -52,7 +52,7 @@ client.addChannel("/onlySend").then(channel => {
     channel.subscribePort(6002);
 
     // Broadcast a message to subscribed ports (6001 and 6002)
-    channel.broadcast("this is a message");
+    channel.publish("this is a message");
 });
 
 // Get all channels
