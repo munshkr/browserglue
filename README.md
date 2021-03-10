@@ -67,11 +67,11 @@ client.on("addChannel", event => {
 
 ### OSC Apps Supported Use Cases
 
-![Diagram: OSC Apps Use Cases](docs/media/osc-apps.png)
+![Diagram: OSC Apps Use Cases](media/osc-apps.png)
 
 ### Internals
 
-![Diagram: Internals](docs/media/internals.png)
+![Diagram: Internals](media/internals.png)
 
 ## Contributing
 
