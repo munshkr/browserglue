@@ -50,6 +50,9 @@ client.addChannel("/sendReceive", 5000, 5001).then(channel => {
 client.addChannel("/onlySend").then(channel => {
     channel.subscribePort(6001);
     channel.subscribePort(6002);
+
+    // Broadcast a message to subscribed ports (6001 and 6002)
+    channel.broadcast("this is a message");
 });
 
 // Get all channels
