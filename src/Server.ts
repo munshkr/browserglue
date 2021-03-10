@@ -168,7 +168,7 @@ class Server {
     // If socket already exists, return false
     if (Object.keys(this.channels).includes(path)) return false;
 
-    console.debug(`Add channel ${path} (receive port: ${port || "none"}, send port: ${sendPort || "none"}`)
+    console.debug(`Add channel ${path}`)
     const newChannel: ServerChannel = {
       path,
       port,
@@ -177,11 +177,11 @@ class Server {
     this.channels[path] = newChannel;
 
     const socket = dgram.createSocket('udp4');
+    this.sockets[path] = socket;
 
     socket.on('listening', () => {
       const address = socket.address();
       console.debug(`[udp] Socket binded at port ${address.port}`);
-      this.sockets[path] = socket;
     })
 
     socket.on('error', (err) => {
@@ -202,9 +202,14 @@ class Server {
       })
     })
 
-    // Only bind socket if port argument is present
+    // If port argument is present, bind it
     if (port) {
       this.bindPort(path, port);
+    }
+
+    // If sendPort is present, subscribe it
+    if (sendPort) {
+      this.subscribePort(path, sendPort);
     }
 
     return true;
