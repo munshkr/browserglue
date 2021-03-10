@@ -1,5 +1,3 @@
 /node_modules/
 /dist/*.js
-/docs/*.html
-/docs/assets/
-/docs/classes/
+/docs/
