@@ -2,7 +2,6 @@ const path = require("path");
 
 const nodeConfig = {
   target: "node",
-  mode: "development",
   entry: "./src/index.ts",
   module: {
     rules: [
