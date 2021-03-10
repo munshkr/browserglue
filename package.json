@@ -15,6 +15,7 @@
     "build": "webpack",
     "start": "webpack --watch",
     "lint": "eslint",
+    "docs": "typedoc",
     "test": "jest"
   },
   "bin": {
