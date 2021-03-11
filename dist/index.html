@@ -1,47 +1,53 @@
 <!doctype html>
 <html>
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>browserglue example</title>
-    </head>
-    <body>
 
-    </body>
-    <script src="browserglue.js"></script>
-    <script type="text/javascript">
-        var client = new browserglue.Client('ws://localhost:8000');
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>browserglue example</title>
+</head>
 
-        console.log("Add socket udp:13455")
-        client.addSocket(13455).then(socket => {
-            // Handle messages
-            socket.on(message => {
-                console.log("Message from udp:13455", message);
-            });
+<body>
 
-            // Remove socket after 5 seconds
-            setTimeout(async () => {
-                console.log("Remove socket udp:13455");
-                client.removeSocket(13455);
-                const sockets = await client.listSockets();
-                console.log("Current sockets:", sockets);
-            }, 5000);
+</body>
+<script src="browserglue.js"></script>
+<script type="text/javascript">
+    var client = new browserglue.Client('ws://localhost:8000');
 
-            // Remove all sockets after 7 seconds
-            setTimeout(async () => {
-                console.log("Remove *all* sockets");
-                client.removeAllSockets();
-                const sockets = await client.listSockets();
-                console.log("Current sockets:", sockets);
-            }, 7000);
+    console.log("Add channel /foo binded to udp:4000")
+    client.addChannel("/foo", 4000).then(channel => {
+        // Handle messages
+        channel.on(message => {
+            console.log("[/foo]", message);
         });
 
-        // Add another socket
-        console.log("Add socket udp:13459")
-        client.addSocket(13459);
+        // Remove socket after 5 seconds
+        setTimeout(async () => {
+            console.log("Remove channel /foo");
+            channel.remove();
+            const channels = await client.getChannels();
+            console.log("Current channels:", channels);
+        }, 5000);
 
-        // List all sockets
-        client.listSockets().then(sockets => console.log("Current sockets:", sockets));
-    </script>
+        // Remove all sockets after 7 seconds
+        // setTimeout(async () => {
+        //     console.log("Remove *all* sockets");
+        //     client.removeAllSockets();
+        //     const sockets = await client.listSockets();
+        //     console.log("Current sockets:", sockets);
+        // }, 7000);
+    });
+
+    // Add another socket
+    console.log("Add channel /bar")
+    client.addChannel("/bar").then(channel => {
+        channel.subscribePort(5010);
+        channel.subscribePort(5011);
+    })
+
+    // List all sockets
+    client.getChannels().then(channels => console.log("Current channels:", channels));
+</script>
+
 </html>

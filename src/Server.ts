@@ -145,7 +145,7 @@ class Server {
     });
 
     server.on('listening', () => {
-      console.debug('[server] listening')
+      console.debug('[server] listening');
       this.emitter.emit('listening');
     });
 
@@ -154,9 +154,9 @@ class Server {
       this.emitter.emit('close');
     });
 
-    server.on('error', () => {
-      console.debug('[server] error');
-      this.emitter.emit('error');
+    server.on('error', (err) => {
+      console.debug('[server]', err);
+      this.emitter.emit('error', err);
     });
   }
 
@@ -238,7 +238,7 @@ class Server {
   }
 
   getChannels(): ServerChannel[] {
-    console.debug("Get channels");
+    console.debug("Get channels:", Object.entries(this.channels));
     return Object.values(this.channels);
   }
 

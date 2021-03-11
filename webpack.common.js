@@ -22,6 +22,7 @@ const nodeConfig = {
     filename: "browserglue.node.js",
     library: "browserglue",
     libraryTarget: "umd",
+    publicPath: "/"
   },
 };
 
@@ -46,6 +47,7 @@ const browserConfig = {
     filename: "browserglue.js",
     library: "browserglue",
     libraryTarget: "umd",
+    publicPath: "/",
   },
 };
 

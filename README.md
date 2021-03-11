@@ -10,8 +10,12 @@ Exposes multiple OSC connections to the browser through WebSockets
 
 After cloning repository, install dependencies with `yarn` or `yarn install` .
 
-To create bundles for the browser and Nodejs, run `yarn build` . This will generate
-a `dist/browserglue.js` library for browsers, and `dist/browserglue.node.js` for Nodejs.
+You can start a development server by runnig `yarn dev`. It will watch source
+files for changes and restart the BrowserGlue binary script automatically.
+
+To create production bundles for the browser and Nodejs, run `yarn build` .
+This will generate a `dist/browserglue.js` library for browsers, and
+`dist/browserglue.node.js` for Nodejs.
 
 Run `yarn docs` to build documentation.
 
