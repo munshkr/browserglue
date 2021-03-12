@@ -9,7 +9,7 @@ import { EventEmitter } from 'events';
 interface ServerChannel {
   path: string;
   port?: number;
-  subscribedPorts: Set<number>;
+  subscribedPorts: number[];
 }
 
 interface ServerOptions {
@@ -30,11 +30,11 @@ const buildRPCServer = (server: Server) => {
 
   // Define RPC methods
   rpcServer.addMethod("addChannel", ({ path, port, sendPort }: AddChannelParams) => {
-    server.addChannel(path, port, sendPort);
+    return server.addChannel(path, port, sendPort);
   })
 
   rpcServer.addMethod("removeChannel", ({ path }: RemoveChannelParams) => {
-    server.removeChannel(path);
+    return server.removeChannel(path);
   })
 
   rpcServer.addMethod("removeAllChannels", () => {
@@ -164,15 +164,18 @@ class Server {
     return this.emitter.on(event, cb);
   }
 
-  addChannel(path: string, port?: number, sendPort?: number): boolean {
-    // If socket already exists, return false
-    if (Object.keys(this.channels).includes(path)) return false;
+  addChannel(path: string, port?: number, sendPort?: number): ServerChannel {
+    // If channel already exists, throw exception
+    if (Object.keys(this.channels).includes(path)) {
+      console.error("Channel already exists");
+      throw 'Channel already exists';
+    }
 
     console.debug(`Add channel ${path}`)
     const newChannel: ServerChannel = {
       path,
       port,
-      subscribedPorts: new Set
+      subscribedPorts: []
     };
     this.channels[path] = newChannel;
 
@@ -212,7 +215,7 @@ class Server {
       this.subscribePort(path, sendPort);
     }
 
-    return true;
+    return newChannel;
   }
 
   removeChannel(path: string): boolean {
@@ -257,21 +260,24 @@ class Server {
   subscribePort(path: string, port: number): boolean {
     if (!this.channels[path]) return false;
     console.log(`Subscribe port ${port} on channel ${path}`);
-    this.channels[path].subscribedPorts.add(port);
+    if (!this.channels[path].subscribedPorts.includes(port)) {
+      this.channels[path].subscribedPorts.push(port);
+    }
     return true;
   }
 
   unsubscribePort(path: string, port: number): boolean {
     if (!this.channels[path]) return false;
     console.log(`Unsubscribe port ${port} from channel ${path}`);
-    this.channels[path].subscribedPorts.delete(port);
+    const newPorts = this.channels[path].subscribedPorts.filter(p => p != port);
+    this.channels[path].subscribedPorts = newPorts;
     return true;
   }
 
   unsubscribeAllPorts(path: string): boolean {
     if (!this.channels[path]) return false;
     console.log(`Unsubscribe all ports from channel ${path}`);
-    this.channels[path].subscribedPorts.clear();
+    this.channels[path].subscribedPorts = [];
     return true;
   }
 

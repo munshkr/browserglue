@@ -9,25 +9,31 @@
 </head>
 
 <body>
-
+    <pre id="log"></pre>
 </body>
 <script src="browserglue.js"></script>
 <script type="text/javascript">
+    const logEl = document.getElementById("log");
+    const log = (msg, ...args) => {
+        console.log(msg, ...args);
+        logEl.innerText += [msg, ...args.map(arg => JSON.stringify(arg))].join(' ') + "\n";
+    }
+
     var client = new browserglue.Client('ws://localhost:8000');
 
-    console.log("Add channel /foo binded to udp:4000")
+    log("Add channel /foo binded to udp:4000")
     client.addChannel("/foo", 4000).then(channel => {
         // Handle messages
         channel.on(message => {
-            console.log("[/foo]", message);
+            log("[/foo]", message);
         });
 
         // Remove socket after 5 seconds
         setTimeout(async () => {
-            console.log("Remove channel /foo");
+            log("Remove channel /foo");
             channel.remove();
             const channels = await client.getChannels();
-            console.log("Current channels:", channels);
+            log("Current channels:", channels);
         }, 5000);
 
         // Remove all sockets after 7 seconds
@@ -40,14 +46,16 @@
     });
 
     // Add another socket
-    console.log("Add channel /bar")
+    log("Add channel /bar")
     client.addChannel("/bar").then(channel => {
+        log("Subscribe port 5010 on /bar");
         channel.subscribePort(5010);
+        log("Subscribe port 5011 on /bar");
         channel.subscribePort(5011);
-    })
 
-    // List all sockets
-    client.getChannels().then(channels => console.log("Current channels:", channels));
+        // List all sockets
+        client.getChannels().then(channels => log("Current channels:", channels));
+    });
 </script>
 
 </html>

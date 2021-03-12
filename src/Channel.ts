@@ -4,7 +4,7 @@ class Channel {
   readonly path: string;
 
   protected _client: Client;
-  protected _subscribedPorts: Set<number>;
+  protected _subscribedPorts: number[];
   protected _port: number;
   protected _open: boolean;
 
@@ -12,7 +12,7 @@ class Channel {
     this.path = path;
 
     this._client = client;
-    this._subscribedPorts = new Set(subscribedPorts);
+    this._subscribedPorts = subscribedPorts;
     this._port = port;
     this._open = true;
   }
@@ -39,21 +39,27 @@ class Channel {
   subscribePort(port: number): boolean {
     if (!this._open) return false;
     const result = this._client.subscribePort(this.path, port);
-    if (result) this._subscribedPorts.add(port);
+    // TODO: subscribedPorts should be updated automatically with events from client
+    if (result) this._subscribedPorts.push(port);
     return true;
   }
 
   unsubscribePort(port: number): boolean {
     if (!this._open) return false;
     const result = this._client.unsubscribePort(this.path, port);
-    if (result) this._subscribedPorts.delete(port);
+    // TODO: subscribedPorts should be updated automatically with events from client
+    if (result) {
+      const newPorts = this._subscribedPorts.filter(p => p != port);
+      this._subscribedPorts = newPorts;
+    }
     return true;
   }
 
   unsubscribeAllPorts(): boolean {
     if (!this._open) return false;
     const result = this._client.unsubscribeAllPorts(this.path);
-    if (result) this._subscribedPorts.clear();
+    // TODO: subscribedPorts should be updated automatically with events from client
+    if (result) this._subscribedPorts = [];
     return true;
   }
 
