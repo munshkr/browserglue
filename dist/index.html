@@ -10,50 +10,51 @@
 
 <body>
     <h1>browserglue testbed</h1>
-    <p>You can use a browserglue client at <code>bg</code> (<code>window.bg</code>).</p>
-    <pre id="log"></pre>
+    <p>Open the Developer Tools and check the console log. You can use a browserglue client at <code>bg</code>
+        (<code>window.bg</code>).</p>
 </body>
 <script src="browserglue.js"></script>
 <script type="text/javascript">
     (async () => {
-        const logEl = document.getElementById("log");
-        const log = (msg, ...args) => {
-            console.log(msg, ...args);
-            logEl.innerText += [msg, ...args].join(' ') + "\n";
-        }
-
         const client = new browserglue.Client('ws://localhost:8000');
         window.bg = client;
 
-        log("Remove all channels first");
+        console.log("Remove all channels first");
         await client.removeAllChannels();
 
-        log("Add channel /foo binded to udp:4000")
+        console.log("Add channel /foo binded to udp:4000")
         const channel = await client.addChannel("/foo", 4000);
         // Handle messages
         channel.on(message => {
-            log("[/foo]", message);
+            console.log("[/foo]", message);
         });
 
         // Remove channel after 3 seconds
-        log("Remove channel /foo in 3 seconds...");
+        console.log("Remove channel /foo in 3 seconds...");
         setTimeout(async () => {
-            log("Remove channel /foo");
+            console.log("Remove channel /foo");
             channel.remove();
             const channels = await client.getChannels();
-            log("Current channels:", channels);
+            console.log("Current channels:", channels);
         }, 3000);
 
         // Add another channel
-        log("Add channel /bar");
+        console.log("Add channel /bar");
         const barChannel = await client.addChannel("/bar");
-        log("Subscribe port 5010 on /bar");
-        channel.subscribePort(5010);
-        log("Subscribe port 5011 on /bar");
-        channel.subscribePort(5011);
+        console.log("Subscribe port 5010 on /bar");
+        barChannel.subscribePort(5010);
+        console.log("Subscribe port 5011 on /bar");
+        barChannel.subscribePort(5011);
+
+        // Remove channel after 3 seconds
+        setTimeout(async () => {
+            console.log("Unsubscribe port 5010 on channel /bar");
+            barChannel.unsubscribePort(5010);
+            console.log("/bar Channel instance:", barChannel);
+        }, 500);
 
         // List all channels
-        client.getChannels().then(channels => log("Current channels:", channels));
+        client.getChannels().then(channels => console.log("Current channels:", channels));
     })();
 </script>
 

@@ -17,6 +17,14 @@ class Channel {
     this._open = true;
   }
 
+  get port(): number {
+    return this._port;
+  }
+
+  get subscribedPorts(): number[] {
+    return this._subscribedPorts;
+  }
+
   on(cb: (message: any) => void): boolean {
     if (!this._open) return false;
     // TODO ...
@@ -40,7 +48,9 @@ class Channel {
     if (!this._open) return false;
     const result = this._client.subscribePort(this.path, port);
     // TODO: subscribedPorts should be updated automatically with events from client
-    if (result) this._subscribedPorts.push(port);
+    if (result) {
+      if (!this._subscribedPorts.includes(port)) this._subscribedPorts.push(port);
+    }
     return true;
   }
 
@@ -59,7 +69,9 @@ class Channel {
     if (!this._open) return false;
     const result = this._client.unsubscribeAllPorts(this.path);
     // TODO: subscribedPorts should be updated automatically with events from client
-    if (result) this._subscribedPorts = [];
+    if (result) {
+      this._subscribedPorts = [];
+    }
     return true;
   }
 

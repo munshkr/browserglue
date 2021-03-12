@@ -270,6 +270,7 @@ class Server {
     if (!this.channels[path]) return false;
     console.log(`Unsubscribe port ${port} from channel ${path}`);
     const newPorts = this.channels[path].subscribedPorts.filter(p => p != port);
+    if (newPorts == this.channels[path].subscribedPorts) return false;
     this.channels[path].subscribedPorts = newPorts;
     return true;
   }

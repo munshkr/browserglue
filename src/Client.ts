@@ -86,10 +86,8 @@ class Client {
   }
 
   async addChannel(path: string, port?: number, sendPort?: number): Promise<Channel> {
-    const c: ServerChannel | null = await this._call("addChannel", { path, port, sendPort });
-    if (!c) throw 'Could not create channel'
-    console.log("new channel added:", c);
-    return new Channel(this, c.path, new Set(c.subscribedPorts), c.port);
+    const c: ServerChannel = await this._call("addChannel", { path, port, sendPort });
+    return new Channel(this, c.path, c.subscribedPorts, c.port);
   }
 
   removeChannel(path: string): PromiseLike<void> {
