@@ -51,13 +51,16 @@ class Client {
   protected _emitter: EventEmitter;
   protected _rpcClient: JSONRPCClient;
   protected _ws: ReconnectingWebSocket;
+  protected _channelWss: { [path: string]: ReconnectingWebSocket };
 
   constructor(url: string = 'ws://localhost:8000') {
     this.url = url;
 
     this._emitter = new EventEmitter();
+    this._channelWss = {};
+
     this._rpcClient = buildRPCClient(url);
-    this._ws = this._createStateWebSocket();
+    this._ws = this._createEventsWebSocket();
   }
 
   get connected(): boolean {
@@ -75,11 +78,16 @@ class Client {
 
   async addChannel(path: string, port?: number, sendPort?: number): Promise<Channel> {
     const c: ServerChannel = await this._call("addChannel", { path, port, sendPort });
+    const dataWs = this._createDataWebSocket(path);
+    this._channelWss[path] = dataWs;
     return new Channel(this, c.path, c.subscribedPorts, c.port);
   }
 
-  removeChannel(path: string): PromiseLike<void> {
-    return this._call("removeChannel", { path });
+  async removeChannel(path: string): Promise<void> {
+    await this._call("removeChannel", { path });
+    const dataWs = this._channelWss[path];
+    if (dataWs) dataWs.disconnect();
+    delete this._channelWss[path];
   }
 
   removeAllChannels(): PromiseLike<void> {
@@ -118,18 +126,35 @@ class Client {
     return this;
   }
 
+  publish(path: string, data: any): boolean {
+    const dataWs = this._channelWss[path];
+    if (!dataWs) return false;
+    dataWs.send(data);
+    return true;
+  }
+
   protected _call(cmd: string, params?: { [name: string]: any }): PromiseLike<any> {
     // The request() function returns a promise of the result.
     return this._rpcClient.request(cmd, params);
   }
 
-  protected _createStateWebSocket(): ReconnectingWebSocket {
+  protected _createEventsWebSocket(): ReconnectingWebSocket {
     const ws = new ReconnectingWebSocket(`${this.url}/events`);
 
     ws.on('message', (ev: WebSocket.MessageEvent) => {
       const payload = JSON.parse(ev.data as string) as ServerEventWSPayload;
       const { type, event } = payload;
       this._emitter.emit(type, event);
+    });
+
+    return ws;
+  }
+
+  protected _createDataWebSocket(path) {
+    const ws = new ReconnectingWebSocket(`${this.url}/data${path}`);
+
+    ws.on('message', (event: WebSocket.MessageEvent) => {
+      this._emitter.emit('message', event.data);
     });
 
     return ws;

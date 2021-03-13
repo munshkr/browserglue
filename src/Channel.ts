@@ -10,7 +10,6 @@ class Channel {
   protected _subscribedPorts: number[];
   protected _port: number;
   protected _open: boolean;
-  protected _ws: ReconnectingWebSocket;
   protected _emitter: EventEmitter;
 
   constructor(client: Client, path: string, subscribedPorts: number[], port?: number) {
@@ -22,7 +21,6 @@ class Channel {
     this._open = true;
 
     this._emitter = new EventEmitter();
-    this._ws = this._createDataWebSocket();
   }
 
   get port(): number {
@@ -39,9 +37,9 @@ class Channel {
     return true;
   }
 
-  publish(message: any): boolean {
+  publish(data: any): boolean {
     if (!this._open) return false;
-    this._ws.send(message);
+    this._client.publish(this.path, data);
     return true;
   }
 
@@ -88,16 +86,6 @@ class Channel {
     this._open = false;
     this._client.removeChannel(this.path);
     return true;
-  }
-
-  protected _createDataWebSocket() {
-    const ws = new ReconnectingWebSocket(`${this._client.url}/data${this.path}`);
-
-    ws.on('message', (event: WebSocket.MessageEvent) => {
-      this._emitter.emit('message', event.data);
-    });
-
-    return ws;
   }
 }
 

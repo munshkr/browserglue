@@ -90,7 +90,7 @@ class Server {
     this.wss = wss;
 
     wss.on('connection', (ws, req) => {
-      console.debug('[data] connection')
+      console.debug('[data] connection:', req.url);
 
       // TODO: Check if url is any of the valid paths (/events, /data/*), and throw error otherwise
       if (req.url.startsWith('/data')) {
