@@ -27,7 +27,7 @@ class Channel {
 
   on(cb: (message: any) => void): boolean {
     if (!this._open) return false;
-    // TODO ...
+    this._client.on(`message:${this.path}`, cb);
     return true;
   }
 

@@ -198,6 +198,8 @@ class Server {
 
       // Broadcast message to all subscribed clients
       const payload = JSON.stringify({ path, data: msg });
+      // TODO: Send only to WS clients subscribed on path,
+      // instead of broadcasting all clients.
       this.wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(payload);

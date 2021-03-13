@@ -40,11 +40,15 @@
 
         // Add another channel
         console.log("Add channel /bar");
-        const barChannel = await client.addChannel("/bar");
+        const barChannel = await client.addChannel("/bar", 5000);
         console.log("Subscribe port 5010 on /bar");
         barChannel.subscribePort(5010);
         console.log("Subscribe port 5011 on /bar");
         barChannel.subscribePort(5011);
+        // Handle messages
+        barChannel.on(message => {
+            console.log("[/bar]", message);
+        });
 
         // Remove channel after 3 seconds
         setTimeout(async () => {

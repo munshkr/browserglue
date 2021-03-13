@@ -3,6 +3,11 @@ import WebSocket from 'isomorphic-ws';
 import { EventEmitter } from 'events';
 import Channel from './Channel';
 
+type WSMessagePayload = {
+  path: string,
+  data: Blob,
+}
+
 interface ClientOptions {
   connect?: boolean;
   autoReconnect?: boolean;
@@ -65,6 +70,7 @@ class Client {
     this._emitter = new EventEmitter();
 
     this._rpcClient = buildRPCClient(url);
+    this.connect();
   }
 
   get connected(): boolean {
@@ -154,10 +160,11 @@ class Client {
       this._isReconnecting = false;
     };
 
-    // ws.onmessage = (event) => {
-    //   const { data } = event;
-    //   // TODO ...
-    // }
+    ws.onmessage = (event) => {
+      const payload = JSON.parse(event.data as string) as WSMessagePayload;
+      const { path, data } = payload;
+      this._emitter.emit(`message:${path}`, data);
+    }
 
     ws.onerror = err => {
       console.error('Unable connect to the server:', err.error);
