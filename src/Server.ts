@@ -71,6 +71,7 @@ class Server {
   wss: WebSocket.Server;
   channels: { [path: string]: ServerChannel };
   sockets: { [path: string]: dgram.Socket };
+  wsClients: { [path: string]: Set<WebSocket> };
   server: string;
 
   constructor({ host, port }: ServerOptions = { host: 'localhost', port: 8000 }) {
@@ -80,6 +81,7 @@ class Server {
     this.emitter = new EventEmitter();
     this.channels = {};
     this.sockets = {};
+    this.wsClients = {};
   }
 
   start() {
@@ -90,7 +92,17 @@ class Server {
     wss.on('connection', (ws, req) => {
       console.debug('[data] connection')
 
-      // messages from client ignored for now...
+      // TODO: Check if url is any of the valid paths (/events, /data/*), and throw error otherwise
+      if (req.url.startsWith('/data')) {
+        const path = req.url.split("/data")[1];
+        if (!this.wsClients[path]) {
+          this.wsClients[path] = new Set();
+        }
+        this.wsClients[path].add(ws);
+      } else if (req.url.startsWith('/events')) {
+        // TODO: Store client on another variable, so we can send events when they happen...
+      }
+
       ws.on('message', (message) => {
         console.log('[ws] received: %s', message);
         this._broadcast({ req, message });
@@ -196,11 +208,10 @@ class Server {
     socket.on('message', (msg, rinfo) => {
       console.debug(`[udp] socket got: ${msg} from ${rinfo.address}:${rinfo.port}`);
 
-      // Broadcast message to all subscribed clients
+      // Broadcast message to all subscribed clients on /data/{path}
       const payload = JSON.stringify({ path, data: msg });
-      // TODO: Send only to WS clients subscribed on path,
-      // instead of broadcasting all clients.
-      this.wss.clients.forEach((client) => {
+      const wsClients = this.wsClients[path] || [];
+      wsClients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(payload);
         }
@@ -227,12 +238,15 @@ class Server {
       try {
         socket.close();
       } catch (err) {
-        console.warn("Socket is already closed? Clean up", err, JSON.stringify(socket));
+        console.warn("Socket is already closed?", err);
       }
-      delete this.channels[path];
-      return true;
     }
-    return false;
+    // Clean up
+    delete this.channels[path];
+    delete this.sockets[path];
+    delete this.wsClients[path];
+    if (!socket) return false;
+    return true;
   }
 
   removeAllChannels(): void {

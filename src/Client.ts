@@ -129,7 +129,7 @@ class Client {
   }
 
   protected _createStateWebSocket(): ReconnectingWebSocket {
-    const ws = new ReconnectingWebSocket(this.url + "/events");
+    const ws = new ReconnectingWebSocket(`${this.url}/events`);
 
     ws.on('message', (ev: WebSocket.MessageEvent) => {
       const payload = JSON.parse(ev.data as string) as ServerEventWSPayload;

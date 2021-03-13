@@ -1,4 +1,7 @@
 import Client from "./Client";
+import WebSocket from "isomorphic-ws";
+import EventEmitter from "events";
+import ReconnectingWebSocket from "./ReconnectingWebSocket";
 
 class Channel {
   readonly path: string;
@@ -7,6 +10,8 @@ class Channel {
   protected _subscribedPorts: number[];
   protected _port: number;
   protected _open: boolean;
+  protected _ws: ReconnectingWebSocket;
+  protected _emitter: EventEmitter;
 
   constructor(client: Client, path: string, subscribedPorts: number[], port?: number) {
     this.path = path;
@@ -15,6 +20,9 @@ class Channel {
     this._subscribedPorts = subscribedPorts;
     this._port = port;
     this._open = true;
+
+    this._emitter = new EventEmitter();
+    this._ws = this._createDataWebSocket();
   }
 
   get port(): number {
@@ -25,9 +33,9 @@ class Channel {
     return this._subscribedPorts;
   }
 
-  on(cb: (message: any) => void): boolean {
+  on(listener: (...args: any[]) => void): boolean {
     if (!this._open) return false;
-    this._client.on(`message:${this.path}`, cb);
+    this._emitter.on('message', listener);
     return true;
   }
 
@@ -80,6 +88,16 @@ class Channel {
     this._open = false;
     this._client.removeChannel(this.path);
     return true;
+  }
+
+  protected _createDataWebSocket() {
+    const ws = new ReconnectingWebSocket(`${this._client.url}/data${this.path}`);
+
+    ws.on('message', (event: WebSocket.MessageEvent) => {
+      this._emitter.emit('message', event);
+    });
+
+    return ws;
   }
 }
 
