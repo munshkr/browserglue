@@ -61,6 +61,13 @@
 
         // List all channels
         client.getChannels().then(channels => console.log("Current channels:", channels));
+
+        setInterval(() => {
+            const now = new Date();
+            const msg = `this message was sent at ${now.toISOString()}`;
+            console.log("Publish to /bar:", msg);
+            barChannel.publish(msg);
+        }, 1000);
     })();
 </script>
 

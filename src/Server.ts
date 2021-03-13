@@ -101,7 +101,7 @@ class Server {
         this.wsClients[path].add(ws);
 
         ws.on('message', (data) => {
-          console.log('[ws] received: %s', data);
+          console.log('[ws] %s received: %s', path, data);
           this._broadcast(path, data);
         });
 
@@ -297,8 +297,11 @@ class Server {
   }
 
   _broadcast(path: string, data: any): void {
+    const channel = this.channels[path];
     const socket = this.sockets[path];
-    const subscribedPorts = this.channels[path].subscribedPorts;
+    if (!socket || !channel) return;
+
+    const subscribedPorts = channel.subscribedPorts;
     if (socket && subscribedPorts) {
       subscribedPorts.forEach(port => {
         socket.send(data, port);
