@@ -1,11 +1,12 @@
 import { JSONRPCClient } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
+import WebSocket from 'isomorphic-ws';
 import ReconnectingWebSocket from './ReconnectingWebSocket';
 import Channel from './Channel';
 
-type WSMessagePayload = {
-  path: string,
-  data: ArrayBuffer,
+type ServerEventWSPayload = {
+  type: string,
+  event: Object,
 }
 
 interface ServerChannel {
@@ -56,8 +57,7 @@ class Client {
 
     this._emitter = new EventEmitter();
     this._rpcClient = buildRPCClient(url);
-
-    this._createWebSocket();
+    this._ws = this._createStateWebSocket();
   }
 
   get connected(): boolean {
@@ -128,14 +128,16 @@ class Client {
     return this._rpcClient.request(cmd, params);
   }
 
-  protected _createWebSocket() {
-    this._ws = new ReconnectingWebSocket(this.url);
+  protected _createStateWebSocket(): ReconnectingWebSocket {
+    const ws = new ReconnectingWebSocket(this.url + "/events");
 
-    this._ws.on('message', (event) => {
-      const payload = JSON.parse(event.data as string) as WSMessagePayload;
-      const { path, data } = payload;
-      this._emitter.emit(`message:${path}`, data);
+    ws.on('message', (ev: WebSocket.MessageEvent) => {
+      const payload = JSON.parse(ev.data as string) as ServerEventWSPayload;
+      const { type, event } = payload;
+      this._emitter.emit(type, event);
     });
+
+    return ws;
   }
 }
 
