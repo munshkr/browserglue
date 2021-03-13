@@ -99,14 +99,15 @@ class Server {
           this.wsClients[path] = new Set();
         }
         this.wsClients[path].add(ws);
+
+        ws.on('message', (data) => {
+          console.log('[ws] received: %s', data);
+          this._broadcast(path, data);
+        });
+
       } else if (req.url.startsWith('/events')) {
         // TODO: Store client on another variable, so we can send events when they happen...
       }
-
-      ws.on('message', (message) => {
-        console.log('[ws] received: %s', message);
-        this._broadcast({ req, message });
-      });
 
       ws.on('error', (err) => {
         console.debug('[data] client error:', err)
@@ -115,8 +116,6 @@ class Server {
       ws.on('close', () => {
         console.debug('[data] client closed');
       });
-
-      this.emitter.emit('data-connection');
     });
 
     const app = express();
@@ -297,9 +296,14 @@ class Server {
     return true;
   }
 
-  _broadcast(obj) {
-    // TODO: get channel path from request), then send message to all subscribed ports of that channel (if exists)
-    console.log(obj);
+  _broadcast(path: string, data: any): void {
+    const socket = this.sockets[path];
+    const subscribedPorts = this.channels[path].subscribedPorts;
+    if (socket && subscribedPorts) {
+      subscribedPorts.forEach(port => {
+        socket.send(data, port);
+      });
+    }
   }
 }
 

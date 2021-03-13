@@ -56,6 +56,11 @@ class ReconnectingWebSocket {
     return this;
   }
 
+  send(data: any): ReconnectingWebSocket {
+    this._ws.send(data);
+    return this;
+  }
+
   protected _connect() {
     if (this._ws) this._ws.close();
 

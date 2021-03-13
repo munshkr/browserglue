@@ -41,7 +41,7 @@ class Channel {
 
   publish(message: any): boolean {
     if (!this._open) return false;
-    this._client.publish(this.path, message);
+    this._ws.send(message);
     return true;
   }
 

@@ -112,11 +112,6 @@ class Client {
     return this._call("unsubscribeAllPorts", { path });
   }
 
-  publish(path: string, message: any): Client {
-    // TODO
-    return this;
-  }
-
   on(type: string, cb: (message: Object) => void): Client {
     // TODO: Use emitter to emit events on 'add', 'remove', 'change', 'connect', 'disconnect'
     this._emitter.on(type, cb);
