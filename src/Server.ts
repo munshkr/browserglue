@@ -205,15 +205,14 @@ class Server {
       // TODO: Reject promise with error?
     });
 
-    socket.on('message', (msg, rinfo) => {
-      console.debug(`[udp] socket got: ${msg} from ${rinfo.address}:${rinfo.port}`);
+    socket.on('message', (buffer, rinfo) => {
+      console.debug(`[udp] socket got: ${buffer} from ${rinfo.address}:${rinfo.port}`);
 
       // Broadcast message to all subscribed clients on /data/{path}
-      const payload = JSON.stringify({ path, data: msg });
       const wsClients = this.wsClients[path] || [];
-      wsClients.forEach((client) => {
+      wsClients.forEach((client: WebSocket) => {
         if (client.readyState === WebSocket.OPEN) {
-          client.send(payload);
+          client.send(buffer);
         }
       })
     })

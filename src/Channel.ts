@@ -94,7 +94,7 @@ class Channel {
     const ws = new ReconnectingWebSocket(`${this._client.url}/data${this.path}`);
 
     ws.on('message', (event: WebSocket.MessageEvent) => {
-      this._emitter.emit('message', event);
+      this._emitter.emit('message', event.data);
     });
 
     return ws;
