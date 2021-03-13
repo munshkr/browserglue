@@ -1,16 +1,11 @@
 import { JSONRPCClient } from 'json-rpc-2.0';
-import WebSocket from 'isomorphic-ws';
 import { EventEmitter } from 'events';
+import ReconnectingWebSocket from './ReconnectingWebSocket';
 import Channel from './Channel';
 
 type WSMessagePayload = {
   path: string,
   data: ArrayBuffer,
-}
-
-interface ClientOptions {
-  connect?: boolean;
-  autoReconnect?: boolean;
 }
 
 interface ServerChannel {
@@ -51,44 +46,31 @@ const buildRPCClient = (wsUrl: string): JSONRPCClient => {
 
 class Client {
   readonly url: string;
-  autoReconnect: boolean;
 
-  protected _started: boolean;
-  protected _connected: boolean;
   protected _emitter: EventEmitter;
   protected _rpcClient: JSONRPCClient;
-  protected _ws: WebSocket;
-  protected _reconnectTimeout: NodeJS.Timeout;
-  protected _isReconnecting: boolean;
+  protected _ws: ReconnectingWebSocket;
 
-  constructor(url: string = 'ws://localhost:8000', { autoReconnect }: ClientOptions = { autoReconnect: true }) {
+  constructor(url: string = 'ws://localhost:8000') {
     this.url = url;
-    this.autoReconnect = autoReconnect;
 
-    this._started = false;
-    this._connected = false;
     this._emitter = new EventEmitter();
-
     this._rpcClient = buildRPCClient(url);
-    this.connect();
+
+    this._createWebSocket();
   }
 
   get connected(): boolean {
-    return this._connected;
+    return this._ws.connected;
   }
 
-  connect(): Client {
-    this._started = true;
-    this._connect();
-    return this;
+  connect(): void {
+    if (this.connected) return;
+    this._ws.connect();
   }
 
-  disconnect(): Client {
-    this._started = false;
-    if (this._connected) {
-      this._ws.close();
-    }
-    return this;
+  disconnect(): void {
+    this._ws.disconnect();
   }
 
   async addChannel(path: string, port?: number, sendPort?: number): Promise<Channel> {
@@ -141,63 +123,19 @@ class Client {
     return this;
   }
 
-  _call(cmd: string, params?: { [name: string]: any }): PromiseLike<any> {
+  protected _call(cmd: string, params?: { [name: string]: any }): PromiseLike<any> {
     // The request() function returns a promise of the result.
     return this._rpcClient.request(cmd, params);
   }
 
-  _connect() {
-    this._ws = new WebSocket(this.url);
-    const ws = this._ws;
+  protected _createWebSocket() {
+    this._ws = new ReconnectingWebSocket(this.url);
 
-    // Clear timeout of reconnect
-    if (this._reconnectTimeout) {
-      clearTimeout(this._reconnectTimeout);
-    }
-
-    ws.onopen = () => {
-      this._connected = true;
-      this._isReconnecting = false;
-    };
-
-    ws.onmessage = (event) => {
+    this._ws.on('message', (event) => {
       const payload = JSON.parse(event.data as string) as WSMessagePayload;
       const { path, data } = payload;
       this._emitter.emit(`message:${path}`, data);
-    }
-
-    ws.onerror = err => {
-      console.error('Unable connect to the server:', err.error);
-
-      this._connected = false;
-      this._isReconnecting = false;
-      if (this._started) {
-        this._reconnect();
-      }
-    };
-
-    ws.onclose = () => {
-      console.log('Connection is closed');
-
-      this._connected = false;
-      this._isReconnecting = false;
-      if (this._started) {
-        this._reconnect();
-      }
-    };
-  }
-
-  _reconnect() {
-    // If is reconnecting so do nothing
-    if (this._isReconnecting || this._connected) {
-      return;
-    }
-    // Set timeout
-    this._isReconnecting = true;
-    this._reconnectTimeout = setTimeout(() => {
-      console.debug('Reconnecting....');
-      this._connect();
-    }, 2000);
+    });
   }
 }
 
