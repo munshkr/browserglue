@@ -5,7 +5,7 @@ import Channel from './Channel';
 
 type WSMessagePayload = {
   path: string,
-  data: Blob,
+  data: ArrayBuffer,
 }
 
 interface ClientOptions {
