@@ -5,6 +5,7 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import { JSONRPCServer } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
+import { DEFAULT_PORT } from './defaults';
 
 interface ServerChannel {
   path: string;
@@ -80,7 +81,7 @@ class Server {
   wsEventClients: Set<WebSocket>;
   server: string;
 
-  constructor({ host, port }: ServerOptions = { host: 'localhost', port: 8000 }) {
+  constructor({ host, port }: ServerOptions = { host: 'localhost', port: DEFAULT_PORT }) {
     this.host = host;
     this.port = port;
 

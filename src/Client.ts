@@ -3,6 +3,7 @@ import { EventEmitter } from 'events';
 import WebSocket from 'isomorphic-ws';
 import ReconnectingWebSocket from './ReconnectingWebSocket';
 import Channel, { ServerChannel } from './Channel';
+import { DEFAULT_PORT } from './defaults';
 
 type ServerEventWSPayload = {
   event: string,
@@ -48,7 +49,7 @@ class Client {
   protected _ws: ReconnectingWebSocket;
   protected _channelWss: { [path: string]: ReconnectingWebSocket };
 
-  constructor(url: string = 'ws://localhost:8000') {
+  constructor(url: string = `ws://localhost:${DEFAULT_PORT}`) {
     this.url = url;
 
     this._emitter = new EventEmitter();
