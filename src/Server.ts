@@ -72,6 +72,7 @@ class Server {
   channels: { [path: string]: ServerChannel };
   sockets: { [path: string]: dgram.Socket };
   wsClients: { [path: string]: Set<WebSocket> };
+  wsEventClients: Set<WebSocket>;
   server: string;
 
   constructor({ host, port }: ServerOptions = { host: 'localhost', port: 8000 }) {
@@ -82,6 +83,7 @@ class Server {
     this.channels = {};
     this.sockets = {};
     this.wsClients = {};
+    this.wsEventClients = new Set();
   }
 
   start() {
@@ -90,11 +92,11 @@ class Server {
     this.wss = wss;
 
     wss.on('connection', (ws, req) => {
-      console.debug('[data] connection:', req.url);
+      console.debug('[ws] connection:', req.url);
 
       // TODO: Check if url is any of the valid paths (/events, /data/*), and throw error otherwise
       if (req.url.startsWith('/data')) {
-        const path = req.url.split("/data")[1];
+        const path = req.url.split('/data')[1];
         if (!this.wsClients[path]) {
           this.wsClients[path] = new Set();
         }
@@ -106,15 +108,15 @@ class Server {
         });
 
       } else if (req.url.startsWith('/events')) {
-        // TODO: Store client on another variable, so we can send events when they happen...
+        this.wsEventClients.add(ws);
       }
 
       ws.on('error', (err) => {
-        console.debug('[data] client error:', err)
+        console.debug('[ws] client error:', err)
       });
 
       ws.on('close', () => {
-        console.debug('[data] client closed');
+        console.debug('[ws] client closed');
       });
     });
 
@@ -189,6 +191,7 @@ class Server {
       subscribedPorts: []
     };
     this.channels[path] = newChannel;
+    this._emitServerEvent("add-channel", { path });
 
     const socket = dgram.createSocket('udp4');
     this.sockets[path] = socket;
@@ -244,6 +247,7 @@ class Server {
     delete this.sockets[path];
     delete this.wsClients[path];
     if (!socket) return false;
+    this._emitServerEvent("remove-channel", { path });
     return true;
   }
 
@@ -254,6 +258,7 @@ class Server {
     });
   }
 
+  // deprecated
   getChannels(): ServerChannel[] {
     console.debug("Get channels:", Object.entries(this.channels));
     return Object.values(this.channels);
@@ -268,6 +273,7 @@ class Server {
       address: '0.0.0.0',
       port
     });
+    this._emitServerEvent("bind-port", { path, port });
     return true;
   }
 
@@ -277,6 +283,7 @@ class Server {
     if (!this.channels[path].subscribedPorts.includes(port)) {
       this.channels[path].subscribedPorts.push(port);
     }
+    this._emitServerEvent("subscribe-port", { path, port });
     return true;
   }
 
@@ -286,17 +293,22 @@ class Server {
     const newPorts = this.channels[path].subscribedPorts.filter(p => p != port);
     if (newPorts == this.channels[path].subscribedPorts) return false;
     this.channels[path].subscribedPorts = newPorts;
+    this._emitServerEvent("unsubscribe-port", { path, port });
     return true;
   }
 
   unsubscribeAllPorts(path: string): boolean {
     if (!this.channels[path]) return false;
     console.log(`Unsubscribe all ports from channel ${path}`);
+    const oldSubscribedPorts = this.channels[path].subscribedPorts;
     this.channels[path].subscribedPorts = [];
+    oldSubscribedPorts.forEach(port => {
+      this._emitServerEvent("unsubscribe-port", { path, port });
+    });
     return true;
   }
 
-  _broadcast(path: string, data: any): void {
+  protected _broadcast(path: string, data: any): void {
     const channel = this.channels[path];
     const socket = this.sockets[path];
     if (!socket || !channel) return;
@@ -307,6 +319,18 @@ class Server {
         socket.send(data, port);
       });
     }
+  }
+
+  protected _emitServerChangeEvent() {
+    this._emitServerEvent("change", this.channels);
+  }
+
+  protected _emitServerEvent(event: string | symbol, message: any) {
+    const payload = { event, message };
+    this.wsEventClients.forEach(ws => {
+      ws.send(JSON.stringify(payload));
+    });
+    this._emitServerChangeEvent();
   }
 }
 
