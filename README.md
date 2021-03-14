@@ -2,9 +2,16 @@
 
 ![status](https://github.com/munshkr/browserglue/actions/workflows/main.yml/badge.svg)
 
-Exposes multiple OSC connections to the browser through WebSockets
+Exposes OSC connections to the browser through WebSockets.
 
-*Work in progress, design and interface is subject to change*
+*Work in progress, design and interface may change frequently*
+
+## Features
+
+* Send messages from local OSC applications to different channels.
+* Publish messages to channels and broadcast them to multiple OSC application on your machine.
+* Portable cross-platform executable that acts as the Server.
+* Server can be controlled remotely from clients (Browser or Node.js library).
 
 ## Development
 
@@ -28,7 +35,7 @@ var client = new browserglue.Client();
 
 // Add a channel that will only receive messages on port 5000
 client.addChannel("/onlyReceive", 5000).then(channel => {
-    channel.on(message => console.log("Message from /onlyReceive:", message));
+    channel.on('message', msg => console.log("Message from /onlyReceive:", msg));
 });
 // this is the same as:
 //  client.addChannel("/onlyReceive").then(channel => channel.bindPort(5000));
@@ -36,8 +43,8 @@ client.addChannel("/onlyReceive", 5000).then(channel => {
 // Add channel /sendReceive, and bind to port 5000
 client.addChannel("/sendReceive", 5000, 5001).then(channel => {
     // Handle messages
-    channel.on(message => {
-        console.log("Message from /foo", message);
+    channel.on('message', msg => {
+        console.log("Message from /foo", msg);
     });
 
     // Remove channel after 10 seconds
@@ -62,11 +69,11 @@ client.addChannel("/onlySend").then(channel => {
 // Get all channels
 client.getChannels().then(channels => console.log("Current channels:", channels));
 
-// Listen on any event in the server: change, addChannel, removeChannel,
-// bindPort, subscribePort, unsubscribePort, unsubscribeAllPorts, etc.
-client.on("addChannel", event => {
-    console.log(event);
-})
+// Listen on any event in the server: change, add-channel, remove-channel,
+// bind-port, subscribe-port, unsubscribe-port
+client.on("change", event => {
+    console.log("[change]", event);
+});
 ```
 
 ### OSC Apps Supported Use Cases
