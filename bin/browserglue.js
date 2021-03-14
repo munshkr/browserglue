@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 const program = require("commander");
 const packageInfo = require("../package.json");
-const { Server } = require("../dist/browserglue.node");
+const { Server, defaults } = require("../dist/browserglue.node");
+
+const { DEFAULT_PORT } = defaults;
 
 program
   .version(packageInfo.version)
   .option("-H, --host <name>", "WebSockets binding host", "localhost")
-  .option("-P, --port <number>", "WebSockets port number", 8000)
+  .option("-P, --port <number>", "WebSockets port number", DEFAULT_PORT)
   .parse(process.argv);
 
 const options = program.opts();
