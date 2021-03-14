@@ -52,6 +52,7 @@ class Client {
     this.url = url;
 
     this._emitter = new EventEmitter();
+    this._channels = {};
     this._channelWss = {};
 
     this._rpcClient = buildRPCClient(url);
@@ -77,30 +78,16 @@ class Client {
 
   async addChannel(path: string, port?: number, sendPort?: number): Promise<Channel> {
     const c: ServerChannel = await this._call("addChannel", { path, port, sendPort });
-    const dataWs = this._createDataWebSocket(path);
-    this._channelWss[path] = dataWs;
-    return new Channel(this, c.path, c.subscribedPorts, c.port);
+    return this._createChannel(c);
   }
 
   async removeChannel(path: string): Promise<void> {
     await this._call("removeChannel", { path });
-    const dataWs = this._channelWss[path];
-    if (dataWs) dataWs.disconnect();
-    delete this._channelWss[path];
+    this._deleteChannel(path);
   }
 
   removeAllChannels(): PromiseLike<void> {
     return this._call("removeAllChannels");
-  }
-
-  async getChannels(): Promise<Channel[]> {
-    const channels: ServerChannel[] = await this._call("getChannels");
-    return channels.map((c: ServerChannel) => {
-      return new Channel(this,
-        c.path,
-        c.subscribedPorts,
-        c.port);
-    });
   }
 
   bindPort(path: string, port: number): PromiseLike<boolean> {
@@ -147,9 +134,16 @@ class Client {
       // Emit `change:${path}` events so that each Channel instance gets updated
       if (event == 'change') {
         const channels = message as { [path: string]: ServerChannel };
-        Object.entries(channels).forEach(([path, channel]: [string, ServerChannel]) => {
-          this._emitter.emit(`change:${path}`, channel);
+        // Update existing or create new channels
+        Object.entries(channels).forEach(([path, c]: [string, ServerChannel]) => {
+          // Make sure Channel instance exists and is stored
+          if (!this.channels[path]) this._createChannel(c);
+          this._emitter.emit(`change:${path}`, c);
         });
+        // Delete removed channels
+        const removedChannels = Object.keys(this.channels)
+          .filter(path => !Object.keys(channels).includes(path));
+        removedChannels.forEach(path => this._deleteChannel(path));
       }
     });
 
@@ -165,6 +159,22 @@ class Client {
     });
 
     return ws;
+  }
+
+  protected _createChannel(attrs: ServerChannel): Channel {
+    const { path, subscribedPorts, port } = attrs;
+    const channel = new Channel(this, path, subscribedPorts, port);
+    this._channelWss[path] = this._createDataWebSocket(path);;
+    this._channels[path] = channel;
+    return channel;
+  }
+
+  protected _deleteChannel(path: string): void {
+    const dataWs = this._channelWss[path];
+    if (dataWs) dataWs.disconnect();
+    this._emitter.removeAllListeners(`change:${path}`);
+    delete this._channelWss[path];
+    delete this._channels[path];
   }
 }
 

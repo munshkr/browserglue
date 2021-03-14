@@ -41,10 +41,6 @@ const buildRPCServer = (server: Server) => {
     server.removeAllChannels();
   })
 
-  rpcServer.addMethod("getChannels", () => {
-    return server.getChannels();
-  })
-
   rpcServer.addMethod("bindPort", ({ path, port }: BindPortParams) => {
     server.bindPort(path, port);
   })
@@ -274,12 +270,6 @@ class Server {
     Object.keys(this.channels).forEach((path) => {
       this.removeChannel(path);
     });
-  }
-
-  // deprecated
-  getChannels(): ServerChannel[] {
-    console.debug("Get channels:", Object.entries(this.channels));
-    return Object.values(this.channels);
   }
 
   bindPort(path: string, port: number): boolean {

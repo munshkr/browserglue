@@ -25,7 +25,7 @@ class Channel {
     this._open = true;
 
     // Update attributes from server state (change event)
-    this._client.on(`change:${path}`, (state: ServerChannel) => {
+    client.on(`change:${path}`, (state: ServerChannel) => {
       const { subscribedPorts, port } = state;
       this._subscribedPorts = subscribedPorts;
       this._port = port;

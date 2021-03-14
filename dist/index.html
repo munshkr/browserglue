@@ -43,8 +43,7 @@
         setTimeout(async () => {
             console.log("Remove channel /foo");
             channel.remove();
-            const channels = await client.getChannels();
-            console.log("Current channels:", channels);
+            console.log("Current channels:", client.channels);
         }, 3000);
 
         // Add another channel
@@ -68,7 +67,7 @@
         }, 500);
 
         // List all channels
-        client.getChannels().then(channels => console.log("Current channels:", channels));
+        console.log("Current channels:", client.channels);
 
         setInterval(() => {
             const now = new Date();
