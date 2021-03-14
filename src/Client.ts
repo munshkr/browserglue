@@ -5,8 +5,8 @@ import ReconnectingWebSocket from './ReconnectingWebSocket';
 import Channel from './Channel';
 
 type ServerEventWSPayload = {
-  type: string,
-  event: Object,
+  event: string,
+  message: Object,
 }
 
 interface ServerChannel {
@@ -143,8 +143,8 @@ class Client {
 
     ws.on('message', (ev: WebSocket.MessageEvent) => {
       const payload = JSON.parse(ev.data as string) as ServerEventWSPayload;
-      const { type, event } = payload;
-      this._emitter.emit(type, event);
+      const { event, message } = payload;
+      this._emitter.emit(event, message);
     });
 
     return ws;

@@ -19,6 +19,14 @@
         const client = new browserglue.Client('ws://localhost:8000');
         window.bg = client;
 
+        // Subscribe to all server events
+        bg.on('change', (msg => console.log("[change]", msg)));
+        bg.on('add-channel', (msg => console.log("[add-channel]", msg)));
+        bg.on('remove-channel', (msg => console.log("[remove-channel]", msg)));
+        bg.on('bind-port', (msg => console.log("[bind-port]", msg)));
+        bg.on('subscribe-port', (msg => console.log("[subscribe-port]", msg)));
+        bg.on('unsubscribe-port', (msg => console.log("[unsubscribe-port]", msg)));
+
         console.log("Remove all channels first");
         await client.removeAllChannels();
 
@@ -40,7 +48,7 @@
         }, 3000);
 
         // Add another channel
-        console.log("Add channel /bar");
+        console.log("Add channel /bar binded to udp:5000");
         const barChannel = await client.addChannel("/bar", 5000);
         console.log("Subscribe port 5010 on /bar");
         barChannel.subscribePort(5010);
