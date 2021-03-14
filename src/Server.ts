@@ -64,6 +64,15 @@ const buildRPCServer = (server: Server) => {
   return rpcServer;
 }
 
+const eventsToBroadcast = [
+  'changed',
+  'add-channel',
+  'remove-channel',
+  'bind-port',
+  'subscribe-port',
+  'unsubscribe-port'
+];
+
 class Server {
   host: string;
   port: number;
@@ -171,6 +180,15 @@ class Server {
       console.debug('[server]', err);
       this.emitter.emit('error', err);
     });
+
+    // For every event to broadcast, send to all WS clients subscribed to /events
+    eventsToBroadcast.forEach(event => {
+      this.emitter.on(event, (message => {
+        this._emitServerEvent(event, message);
+        // Also send a "change" event with the Server state (channels object)
+        this._emitServerChangeEvent();
+      }));
+    });
   }
 
   on(event: string, cb: (...args: any[]) => void) {
@@ -191,7 +209,7 @@ class Server {
       subscribedPorts: []
     };
     this.channels[path] = newChannel;
-    this._emitServerEvent("add-channel", { path });
+    this.emitter.emit("add-channel", { path });
 
     const socket = dgram.createSocket('udp4');
     this.sockets[path] = socket;
@@ -247,7 +265,7 @@ class Server {
     delete this.sockets[path];
     delete this.wsClients[path];
     if (!socket) return false;
-    this._emitServerEvent("remove-channel", { path });
+    this.emitter.emit("remove-channel", { path });
     return true;
   }
 
@@ -273,7 +291,7 @@ class Server {
       address: '0.0.0.0',
       port
     });
-    this._emitServerEvent("bind-port", { path, port });
+    this.emitter.emit("bind-port", { path, port });
     return true;
   }
 
@@ -283,7 +301,7 @@ class Server {
     if (!this.channels[path].subscribedPorts.includes(port)) {
       this.channels[path].subscribedPorts.push(port);
     }
-    this._emitServerEvent("subscribe-port", { path, port });
+    this.emitter.emit("subscribe-port", { path, port });
     return true;
   }
 
@@ -293,7 +311,7 @@ class Server {
     const newPorts = this.channels[path].subscribedPorts.filter(p => p != port);
     if (newPorts == this.channels[path].subscribedPorts) return false;
     this.channels[path].subscribedPorts = newPorts;
-    this._emitServerEvent("unsubscribe-port", { path, port });
+    this.emitter.emit("unsubscribe-port", { path, port });
     return true;
   }
 
@@ -303,7 +321,7 @@ class Server {
     const oldSubscribedPorts = this.channels[path].subscribedPorts;
     this.channels[path].subscribedPorts = [];
     oldSubscribedPorts.forEach(port => {
-      this._emitServerEvent("unsubscribe-port", { path, port });
+      this.emitter.emit("unsubscribe-port", { path, port });
     });
     return true;
   }
@@ -325,12 +343,11 @@ class Server {
     this._emitServerEvent("change", this.channels);
   }
 
-  protected _emitServerEvent(event: string | symbol, message: any) {
+  protected _emitServerEvent(event: string | symbol, message?: Object) {
     const payload = { event, message };
     this.wsEventClients.forEach(ws => {
       ws.send(JSON.stringify(payload));
     });
-    this._emitServerChangeEvent();
   }
 }
 
