@@ -2,17 +2,11 @@ import { JSONRPCClient } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
 import WebSocket from 'isomorphic-ws';
 import ReconnectingWebSocket from './ReconnectingWebSocket';
-import Channel from './Channel';
+import Channel, { ServerChannel } from './Channel';
 
 type ServerEventWSPayload = {
   event: string,
   message: Object,
-}
-
-interface ServerChannel {
-  path: string;
-  port: number;
-  subscribedPorts: number[];
 }
 
 const buildRPCClient = (wsUrl: string): JSONRPCClient => {
@@ -48,6 +42,7 @@ const buildRPCClient = (wsUrl: string): JSONRPCClient => {
 class Client {
   readonly url: string;
 
+  protected _channels: { [path: string]: Channel };
   protected _emitter: EventEmitter;
   protected _rpcClient: JSONRPCClient;
   protected _ws: ReconnectingWebSocket;
@@ -65,6 +60,10 @@ class Client {
 
   get connected(): boolean {
     return this._ws.connected;
+  }
+
+  get channels(): { [path: string]: Channel } {
+    return { ...this._channels };
   }
 
   connect(): void {
@@ -121,7 +120,6 @@ class Client {
   }
 
   on(type: string, cb: (message: Object) => void): Client {
-    // TODO: Use emitter to emit events on 'add', 'remove', 'change', 'connect', 'disconnect'
     this._emitter.on(type, cb);
     return this;
   }
@@ -145,16 +143,25 @@ class Client {
       const payload = JSON.parse(ev.data as string) as ServerEventWSPayload;
       const { event, message } = payload;
       this._emitter.emit(event, message);
+
+      // Emit `change:${path}` events so that each Channel instance gets updated
+      if (event == 'change') {
+        const channels = message as { [path: string]: ServerChannel };
+        Object.entries(channels).forEach(([path, channel]: [string, ServerChannel]) => {
+          this._emitter.emit(`change:${path}`, channel);
+        });
+      }
     });
 
     return ws;
   }
 
-  protected _createDataWebSocket(path) {
+  protected _createDataWebSocket(path: string) {
     const ws = new ReconnectingWebSocket(`${this.url}/data${path}`);
 
     ws.on('message', (event: WebSocket.MessageEvent) => {
-      this._emitter.emit('message', event.data);
+      this._emitter.emit('message', { path, data: event.data });
+      this._emitter.emit(`message:${path}`, event.data);
     });
 
     return ws;

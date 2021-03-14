@@ -1,7 +1,11 @@
 import Client from "./Client";
-import WebSocket from "isomorphic-ws";
 import EventEmitter from "events";
-import ReconnectingWebSocket from "./ReconnectingWebSocket";
+
+interface ServerChannel {
+  path: string;
+  port: number;
+  subscribedPorts: number[];
+}
 
 class Channel {
   readonly path: string;
@@ -20,7 +24,12 @@ class Channel {
     this._port = port;
     this._open = true;
 
-    this._emitter = new EventEmitter();
+    // Update attributes from server state (change event)
+    this._client.on(`change:${path}`, (state: ServerChannel) => {
+      const { subscribedPorts, port } = state;
+      this._subscribedPorts = subscribedPorts;
+      this._port = port;
+    })
   }
 
   get port(): number {
@@ -31,62 +40,43 @@ class Channel {
     return this._subscribedPorts;
   }
 
-  on(listener: (...args: any[]) => void): boolean {
-    if (!this._open) return false;
-    this._emitter.on('message', listener);
-    return true;
+  on(event: string, listener: (...args: any[]) => void): Channel {
+    this._client.on(`${event}:${this.path}`, listener);
+    return this;
   }
 
   publish(data: any): boolean {
     if (!this._open) return false;
-    this._client.publish(this.path, data);
-    return true;
+    return this._client.publish(this.path, data);
   }
 
-  bindPort(port: number): boolean {
+  async bindPort(port: number): Promise<boolean> {
     if (!this._open) return false;
-    const result = this._client.bindPort(this.path, port);
-    if (result) this._port = port;
-    return true;
+    return this._client.bindPort(this.path, port);
   }
 
-  subscribePort(port: number): boolean {
+  async subscribePort(port: number): Promise<boolean> {
     if (!this._open) return false;
-    const result = this._client.subscribePort(this.path, port);
-    // TODO: subscribedPorts should be updated automatically with events from client
-    if (result) {
-      if (!this._subscribedPorts.includes(port)) this._subscribedPorts.push(port);
-    }
-    return true;
+    return await this._client.subscribePort(this.path, port);
   }
 
-  unsubscribePort(port: number): boolean {
+  async unsubscribePort(port: number): Promise<boolean> {
     if (!this._open) return false;
-    const result = this._client.unsubscribePort(this.path, port);
-    // TODO: subscribedPorts should be updated automatically with events from client
-    if (result) {
-      const newPorts = this._subscribedPorts.filter(p => p != port);
-      this._subscribedPorts = newPorts;
-    }
-    return true;
+    return this._client.unsubscribePort(this.path, port);
   }
 
-  unsubscribeAllPorts(): boolean {
+  async unsubscribeAllPorts(): Promise<boolean> {
     if (!this._open) return false;
-    const result = this._client.unsubscribeAllPorts(this.path);
-    // TODO: subscribedPorts should be updated automatically with events from client
-    if (result) {
-      this._subscribedPorts = [];
-    }
-    return true;
+    return this._client.unsubscribeAllPorts(this.path);
   }
 
-  remove(): boolean {
+  async remove(): Promise<boolean> {
     if (!this._open) return false;
+    await this._client.removeChannel(this.path);
     this._open = false;
-    this._client.removeChannel(this.path);
     return true;
   }
 }
 
 export default Channel;
+export { Channel, ServerChannel };

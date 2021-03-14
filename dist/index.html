@@ -33,7 +33,7 @@
         console.log("Add channel /foo binded to udp:4000")
         const channel = await client.addChannel("/foo", 4000);
         // Handle messages
-        channel.on(async blob => {
+        channel.on('message', async blob => {
             const text = await blob.text();
             console.log("[/foo]", text);
         });
@@ -55,7 +55,7 @@
         console.log("Subscribe port 5011 on /bar");
         barChannel.subscribePort(5011);
         // Handle messages
-        barChannel.on(async blob => {
+        barChannel.on('message', async blob => {
             const text = await blob.text();
             console.log("[/bar]", text);
         });
