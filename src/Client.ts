@@ -148,6 +148,14 @@ class Client {
       }
     });
 
+    ws.on('open', (event: WebSocket.OpenEvent) => {
+      this._emitter.emit('connect', event);
+    });
+
+    ws.on('close', (event: WebSocket.CloseEvent) => {
+      this._emitter.emit('disconnect', event);
+    });
+
     return ws;
   }
 
@@ -174,6 +182,8 @@ class Client {
     const dataWs = this._channelWss[path];
     if (dataWs) dataWs.disconnect();
     this._emitter.removeAllListeners(`change:${path}`);
+    // TODO: Remove all listeners from `*:${path}`
+    // ...is it even possible without storing myself all handled events?
     delete this._channelWss[path];
     delete this._channels[path];
   }

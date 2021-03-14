@@ -20,6 +20,8 @@
         window.bg = client;
 
         // Subscribe to all server events
+        bg.on('connect', (msg => console.log("[connect]", msg)));
+        bg.on('disconnect', (msg => console.log("[disconnect]", msg)));
         bg.on('change', (msg => console.log("[change]", msg)));
         bg.on('add-channel', (msg => console.log("[add-channel]", msg)));
         bg.on('remove-channel', (msg => console.log("[remove-channel]", msg)));
