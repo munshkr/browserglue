@@ -32,24 +32,25 @@ Run `yarn docs` to build documentation.
 
 ```javascript
 (async () => {
-    window.bg = new browserglue.Client();
+    const bg = new browserglue.Client();
 
     // Subscribe to all server events
-    bg.on('connect', (msg => console.log("[connect]", msg)));
-    bg.on('disconnect', (msg => console.log("[disconnect]", msg)));
-    bg.on('change', (msg => console.log("[change]", msg)));
-    bg.on('add-channel', (msg => console.log("[add-channel]", msg)));
-    bg.on('remove-channel', (msg => console.log("[remove-channel]", msg)));
-    bg.on('bind-port', (msg => console.log("[bind-port]", msg)));
-    bg.on('subscribe-port', (msg => console.log("[subscribe-port]", msg)));
-    bg.on('unsubscribe-port', (msg => console.log("[unsubscribe-port]", msg)));
+    bg.on('connect', event => console.log("[connect]", event));
+    bg.on('disconnect', event => console.log("[disconnect]", event));
+    bg.on('change', channels => console.log("[change]", channels));
+    bg.on('add-channel', ({ path }) => console.log("[add-channel]", path));
+    bg.on('remove-channel', ({ path }) => console.log("[remove-channel]", path));
+    bg.on('bind-port', ({ path, port }) => console.log("[bind-port]", path, port));
+    bg.on('subscribe-port', ({ path, port }) => console.log("[subscribe-port]", msg));
+    bg.on('unsubscribe-port', ({ path, port }) => console.log("[unsubscribe-port]", msg));
 
-    console.log("Remove all channels first");
+    console.log("Remove all channels");
     await bg.removeAllChannels();
 
     console.log("Add channel /foo binded to udp:4000")
     const channel = await bg.addChannel("/foo", 4000);
-    // Handle messages
+
+    // Handle messages sent to port 4000
     channel.on('message', async blob => {
 	const text = await blob.text();
 	console.log("[/foo]", text);
@@ -70,26 +71,29 @@ Run `yarn docs` to build documentation.
     barChannel.subscribePort(5010);
     console.log("Subscribe port 5011 on /bar");
     barChannel.subscribePort(5011);
-    // Handle messages
+
+    // Handle messages from /bar
     barChannel.on('message', async blob => {
 	const text = await blob.text();
 	console.log("[/bar]", text);
     });
 
-    // Remove channel after 3 seconds
+    // After 500ms unsubscribe port 5010 on /bar
     setTimeout(async () => {
 	console.log("Unsubscribe port 5010 on channel /bar");
 	barChannel.unsubscribePort(5010);
 	console.log("/bar Channel instance:", barChannel);
     }, 500);
 
-    // List all channels
+    // List all channels, they are kept in sync between clients
     console.log("Current channels:", bg.channels);
 
+    // Publish a message every 3 seconds to /bar
     setInterval(() => {
 	const now = new Date();
 	const msg = `this message was sent at ${now.toISOString()}`;
 	console.log("Publish to /bar:", msg);
+	// NOTE: This actually is not a valid OSC message, you should encode it properly...
 	barChannel.publish(msg);
     }, 3000);
 })();
