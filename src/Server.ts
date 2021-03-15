@@ -71,31 +71,32 @@ const eventsToBroadcast = [
 ];
 
 class Server {
-  host: string;
-  port: number;
-  emitter: EventEmitter;
-  wss: WebSocket.Server;
-  channels: { [path: string]: ServerChannel };
-  sockets: { [path: string]: dgram.Socket };
-  wsClients: { [path: string]: Set<WebSocket> };
-  wsEventClients: Set<WebSocket>;
-  server: string;
+  readonly host: string;
+  readonly port: number;
+
+  protected _emitter: EventEmitter;
+  protected _wss: WebSocket.Server;
+  protected _channels: { [path: string]: ServerChannel };
+  protected _sockets: { [path: string]: dgram.Socket };
+  protected _wsClients: { [path: string]: Set<WebSocket> };
+  protected _wsEventClients: Set<WebSocket>;
+  protected _server: string;
 
   constructor({ host, port }: ServerOptions = { host: 'localhost', port: DEFAULT_PORT }) {
     this.host = host;
     this.port = port;
 
-    this.emitter = new EventEmitter();
-    this.channels = {};
-    this.sockets = {};
-    this.wsClients = {};
-    this.wsEventClients = new Set();
+    this._emitter = new EventEmitter();
+    this._channels = {};
+    this._sockets = {};
+    this._wsClients = {};
+    this._wsEventClients = new Set();
   }
 
   start() {
     // Create WebSockets servers for both RPC interface and data
     const wss = new WebSocket.Server({ noServer: true });
-    this.wss = wss;
+    this._wss = wss;
 
     wss.on('connection', (ws, req) => {
       console.debug('[ws] connection:', req.url);
@@ -103,10 +104,10 @@ class Server {
       // TODO: Check if url is any of the valid paths (/events, /data/*), and throw error otherwise
       if (req.url.startsWith('/data')) {
         const path = req.url.split('/data')[1];
-        if (!this.wsClients[path]) {
-          this.wsClients[path] = new Set();
+        if (!this._wsClients[path]) {
+          this._wsClients[path] = new Set();
         }
-        this.wsClients[path].add(ws);
+        this._wsClients[path].add(ws);
 
         ws.on('message', (data) => {
           console.log('[ws] %s received: %s', path, data);
@@ -114,7 +115,7 @@ class Server {
         });
 
       } else if (req.url.startsWith('/events')) {
-        this.wsEventClients.add(ws);
+        this._wsEventClients.add(ws);
       }
 
       ws.on('error', (err) => {
@@ -154,7 +155,7 @@ class Server {
 
     // Create HTTP server and start listening
     const server = app.listen(this.port, this.host);
-    this.server = server;
+    this._server = server;
 
     // Handle upgrade requests to WebSockets
     server.on('upgrade', (request, socket, head) => {
@@ -165,22 +166,22 @@ class Server {
 
     server.on('listening', () => {
       console.debug('[server] listening');
-      this.emitter.emit('listening');
+      this._emitter.emit('listening');
     });
 
     server.on('close', () => {
       console.debug('[server] closed');
-      this.emitter.emit('close');
+      this._emitter.emit('close');
     });
 
     server.on('error', (err) => {
       console.debug('[server]', err);
-      this.emitter.emit('error', err);
+      this._emitter.emit('error', err);
     });
 
     // For every event to broadcast, send to all WS clients subscribed to /events
     eventsToBroadcast.forEach(event => {
-      this.emitter.on(event, (message => {
+      this._emitter.on(event, (message => {
         this._emitServerEvent(event, message);
         // Also send a "change" event with the Server state (channels object)
         this._emitServerChangeEvent();
@@ -189,12 +190,12 @@ class Server {
   }
 
   on(event: string, cb: (...args: any[]) => void) {
-    return this.emitter.on(event, cb);
+    return this._emitter.on(event, cb);
   }
 
   addChannel(path: string, port?: number, sendPort?: number): ServerChannel {
     // If channel already exists, throw exception
-    if (Object.keys(this.channels).includes(path)) {
+    if (Object.keys(this._channels).includes(path)) {
       console.error("Channel already exists");
       throw 'Channel already exists';
     }
@@ -205,11 +206,11 @@ class Server {
       port,
       subscribedPorts: []
     };
-    this.channels[path] = newChannel;
-    this.emitter.emit("add-channel", { path });
+    this._channels[path] = newChannel;
+    this._emitter.emit("add-channel", { path });
 
     const socket = dgram.createSocket('udp4');
-    this.sockets[path] = socket;
+    this._sockets[path] = socket;
 
     socket.on('listening', () => {
       const address = socket.address();
@@ -226,7 +227,7 @@ class Server {
       console.debug(`[udp] socket got: ${buffer} from ${rinfo.address}:${rinfo.port}`);
 
       // Broadcast message to all subscribed clients on /data/{path}
-      const wsClients = this.wsClients[path] || [];
+      const wsClients = this._wsClients[path] || [];
       wsClients.forEach((client: WebSocket) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(buffer);
@@ -248,7 +249,7 @@ class Server {
   }
 
   removeChannel(path: string): boolean {
-    const socket = this.sockets[path];
+    const socket = this._sockets[path];
     if (socket) {
       console.debug(`Remove channel ${path}`);
       try {
@@ -258,68 +259,68 @@ class Server {
       }
     }
     // Clean up
-    delete this.channels[path];
-    delete this.sockets[path];
-    delete this.wsClients[path];
+    delete this._channels[path];
+    delete this._sockets[path];
+    delete this._wsClients[path];
     if (!socket) return false;
-    this.emitter.emit("remove-channel", { path });
+    this._emitter.emit("remove-channel", { path });
     return true;
   }
 
   removeAllChannels(): void {
     console.debug("Remove all channels");
-    Object.keys(this.channels).forEach((path) => {
+    Object.keys(this._channels).forEach((path) => {
       this.removeChannel(path);
     });
   }
 
   bindPort(path: string, port: number): boolean {
-    if (!this.channels[path]) return false;
-    const socket = this.sockets[path];
+    if (!this._channels[path]) return false;
+    const socket = this._sockets[path];
     if (!socket) return false;
     console.log(`Bind socket of channel ${path} to port ${port}`);
     socket.bind({
       address: '0.0.0.0',
       port
     });
-    this.emitter.emit("bind-port", { path, port });
+    this._emitter.emit("bind-port", { path, port });
     return true;
   }
 
   subscribePort(path: string, port: number): boolean {
-    if (!this.channels[path]) return false;
+    if (!this._channels[path]) return false;
     console.log(`Subscribe port ${port} on channel ${path}`);
-    if (!this.channels[path].subscribedPorts.includes(port)) {
-      this.channels[path].subscribedPorts.push(port);
+    if (!this._channels[path].subscribedPorts.includes(port)) {
+      this._channels[path].subscribedPorts.push(port);
     }
-    this.emitter.emit("subscribe-port", { path, port });
+    this._emitter.emit("subscribe-port", { path, port });
     return true;
   }
 
   unsubscribePort(path: string, port: number): boolean {
-    if (!this.channels[path]) return false;
+    if (!this._channels[path]) return false;
     console.log(`Unsubscribe port ${port} from channel ${path}`);
-    const newPorts = this.channels[path].subscribedPorts.filter(p => p != port);
-    if (newPorts == this.channels[path].subscribedPorts) return false;
-    this.channels[path].subscribedPorts = newPorts;
-    this.emitter.emit("unsubscribe-port", { path, port });
+    const newPorts = this._channels[path].subscribedPorts.filter(p => p != port);
+    if (newPorts == this._channels[path].subscribedPorts) return false;
+    this._channels[path].subscribedPorts = newPorts;
+    this._emitter.emit("unsubscribe-port", { path, port });
     return true;
   }
 
   unsubscribeAllPorts(path: string): boolean {
-    if (!this.channels[path]) return false;
+    if (!this._channels[path]) return false;
     console.log(`Unsubscribe all ports from channel ${path}`);
-    const oldSubscribedPorts = this.channels[path].subscribedPorts;
-    this.channels[path].subscribedPorts = [];
+    const oldSubscribedPorts = this._channels[path].subscribedPorts;
+    this._channels[path].subscribedPorts = [];
     oldSubscribedPorts.forEach(port => {
-      this.emitter.emit("unsubscribe-port", { path, port });
+      this._emitter.emit("unsubscribe-port", { path, port });
     });
     return true;
   }
 
   protected _broadcast(path: string, data: any): void {
-    const channel = this.channels[path];
-    const socket = this.sockets[path];
+    const channel = this._channels[path];
+    const socket = this._sockets[path];
     if (!socket || !channel) return;
 
     const subscribedPorts = channel.subscribedPorts;
@@ -331,12 +332,12 @@ class Server {
   }
 
   protected _emitServerChangeEvent() {
-    this._emitServerEvent("change", this.channels);
+    this._emitServerEvent("change", this._channels);
   }
 
   protected _emitServerEvent(event: string | symbol, message?: Object) {
     const payload = { event, message };
-    this.wsEventClients.forEach(ws => {
+    this._wsEventClients.forEach(ws => {
       ws.send(JSON.stringify(payload));
     });
   }
