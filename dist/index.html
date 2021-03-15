@@ -16,7 +16,7 @@
 <script src="browserglue.js"></script>
 <script type="text/javascript">
     (async () => {
-        const client = new browserglue.Client('ws://localhost:8000');
+        const client = new browserglue.Client();
         window.bg = client;
 
         // Subscribe to all server events
