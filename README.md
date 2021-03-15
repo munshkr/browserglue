@@ -31,49 +31,68 @@ Run `yarn docs` to build documentation.
 ### JavaScript API
 
 ```javascript
-var client = new browserglue.Client();
+(async () => {
+    window.bg = new browserglue.Client();
 
-// Add a channel that will only receive messages on port 5000
-client.addChannel("/onlyReceive", 5000).then(channel => {
-    channel.on('message', msg => console.log("Message from /onlyReceive:", msg));
-});
-// this is the same as:
-//  client.addChannel("/onlyReceive").then(channel => channel.bindPort(5000));
+    // Subscribe to all server events
+    bg.on('connect', (msg => console.log("[connect]", msg)));
+    bg.on('disconnect', (msg => console.log("[disconnect]", msg)));
+    bg.on('change', (msg => console.log("[change]", msg)));
+    bg.on('add-channel', (msg => console.log("[add-channel]", msg)));
+    bg.on('remove-channel', (msg => console.log("[remove-channel]", msg)));
+    bg.on('bind-port', (msg => console.log("[bind-port]", msg)));
+    bg.on('subscribe-port', (msg => console.log("[subscribe-port]", msg)));
+    bg.on('unsubscribe-port', (msg => console.log("[unsubscribe-port]", msg)));
 
-// Add channel /sendReceive, and bind to port 5000
-client.addChannel("/sendReceive", 5000, 5001).then(channel => {
+    console.log("Remove all channels first");
+    await bg.removeAllChannels();
+
+    console.log("Add channel /foo binded to udp:4000")
+    const channel = await bg.addChannel("/foo", 4000);
     // Handle messages
-    channel.on('message', msg => {
-        console.log("Message from /foo", msg);
+    channel.on('message', async blob => {
+	const text = await blob.text();
+	console.log("[/foo]", text);
     });
 
-    // Remove channel after 10 seconds
+    // Remove channel after 3 seconds
+    console.log("Remove channel /foo in 3 seconds...");
     setTimeout(async () => {
-        channel.remove();
+	console.log("Remove channel /foo");
+	channel.remove();
+	console.log("Current channels:", bg.channels);
+    }, 3000);
 
-        // Get new list of channels. You can also listen to the "change" event
-        const channels = await client.getChannels();
-        console.log("Current channels:", channels);
-    }, 10000);
-});
+    // Add another channel
+    console.log("Add channel /bar binded to udp:5000");
+    const barChannel = await bg.addChannel("/bar", 5000);
+    console.log("Subscribe port 5010 on /bar");
+    barChannel.subscribePort(5010);
+    console.log("Subscribe port 5011 on /bar");
+    barChannel.subscribePort(5011);
+    // Handle messages
+    barChannel.on('message', async blob => {
+	const text = await blob.text();
+	console.log("[/bar]", text);
+    });
 
-// Add another channel, this will skip binding to a port and will only send messages to port 6001 and 6002
-client.addChannel("/onlySend").then(channel => {
-    channel.subscribePort(6001);
-    channel.subscribePort(6002);
+    // Remove channel after 3 seconds
+    setTimeout(async () => {
+	console.log("Unsubscribe port 5010 on channel /bar");
+	barChannel.unsubscribePort(5010);
+	console.log("/bar Channel instance:", barChannel);
+    }, 500);
 
-    // Broadcast a message to subscribed ports (6001 and 6002)
-    channel.publish("this is a message");
-});
+    // List all channels
+    console.log("Current channels:", bg.channels);
 
-// Get all channels
-client.getChannels().then(channels => console.log("Current channels:", channels));
-
-// Listen on any event in the server: change, add-channel, remove-channel,
-// bind-port, subscribe-port, unsubscribe-port
-client.on("change", event => {
-    console.log("[change]", event);
-});
+    setInterval(() => {
+	const now = new Date();
+	const msg = `this message was sent at ${now.toISOString()}`;
+	console.log("Publish to /bar:", msg);
+	barChannel.publish(msg);
+    }, 3000);
+})();
 ```
 
 ### OSC Apps Supported Use Cases

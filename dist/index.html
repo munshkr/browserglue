@@ -16,8 +16,7 @@
 <script src="browserglue.js"></script>
 <script type="text/javascript">
     (async () => {
-        const client = new browserglue.Client();
-        window.bg = client;
+        window.bg = new browserglue.Client();
 
         // Subscribe to all server events
         bg.on('connect', (msg => console.log("[connect]", msg)));
@@ -30,10 +29,10 @@
         bg.on('unsubscribe-port', (msg => console.log("[unsubscribe-port]", msg)));
 
         console.log("Remove all channels first");
-        await client.removeAllChannels();
+        await bg.removeAllChannels();
 
         console.log("Add channel /foo binded to udp:4000")
-        const channel = await client.addChannel("/foo", 4000);
+        const channel = await bg.addChannel("/foo", 4000);
         // Handle messages
         channel.on('message', async blob => {
             const text = await blob.text();
@@ -45,12 +44,12 @@
         setTimeout(async () => {
             console.log("Remove channel /foo");
             channel.remove();
-            console.log("Current channels:", client.channels);
+            console.log("Current channels:", bg.channels);
         }, 3000);
 
         // Add another channel
         console.log("Add channel /bar binded to udp:5000");
-        const barChannel = await client.addChannel("/bar", 5000);
+        const barChannel = await bg.addChannel("/bar", 5000);
         console.log("Subscribe port 5010 on /bar");
         barChannel.subscribePort(5010);
         console.log("Subscribe port 5011 on /bar");
@@ -69,7 +68,7 @@
         }, 500);
 
         // List all channels
-        console.log("Current channels:", client.channels);
+        console.log("Current channels:", bg.channels);
 
         setInterval(() => {
             const now = new Date();
