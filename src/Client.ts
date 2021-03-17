@@ -80,7 +80,6 @@ class Client {
   }
 
   disconnect(): Client {
-    if (!this.connected) return this;
     this._ws.disconnect();
     Object.values(this._channelWss).forEach(ws => ws.disconnect());
     return this;
@@ -130,6 +129,7 @@ class Client {
 
   protected _call(cmd: string, params?: { [name: string]: any }): PromiseLike<any> {
     // The request() function returns a promise of the result.
+    // TODO: Return false if not connected
     return this._rpcClient.request(cmd, params);
   }
 
@@ -181,7 +181,9 @@ class Client {
   protected _createChannel(attrs: ServerChannel): Channel {
     const { path, subscribedPorts, port } = attrs;
     const channel = new Channel(this, path, subscribedPorts, port);
-    this._channelWss[path] = this._createDataWebSocket(path);;
+    if (!this._channelWss[path]) {
+      this._channelWss[path] = this._createDataWebSocket(path);;
+    }
     this._channels[path] = channel;
     return channel;
   }

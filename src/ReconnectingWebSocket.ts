@@ -38,6 +38,7 @@ class ReconnectingWebSocket {
   }
 
   connect(): ReconnectingWebSocket {
+    if (this.connected) return this;
     this._started = true;
     this._connect();
     return this;
@@ -45,9 +46,8 @@ class ReconnectingWebSocket {
 
   disconnect(): ReconnectingWebSocket {
     this._started = false;
-    if (this._connected) {
-      this._ws.close();
-    }
+    clearTimeout(this._reconnectTimeout);
+    this._ws.close();
     return this;
   }
 
@@ -93,11 +93,12 @@ class ReconnectingWebSocket {
 
   protected _reconnect() {
     // If is reconnecting so do nothing
-    if (this._isReconnecting || this._connected) {
+    if (this._isReconnecting || this._connected || !this._started) {
       return;
     }
     // Set timeout
     this._isReconnecting = true;
+    clearTimeout(this._reconnectTimeout);
     this._reconnectTimeout = setTimeout(() => {
       console.debug('Reconnecting....');
       this._connect();
