@@ -20,7 +20,7 @@ class ReconnectingWebSocket {
   constructor(url: string, options?: Options) {
     const { autoConnect, reconnectTimeoutInterval }: Options = Object.assign({}, options, {
       autoConnect: true,
-      reconnectTimeoutInterval: 1000
+      reconnectTimeoutInterval: 5000
     });
 
     this.url = url;
@@ -67,40 +67,28 @@ class ReconnectingWebSocket {
     this._ws = new WebSocket(this.url);
     const ws = this._ws;
 
-    // Clear timeout of reconnect
+    // Clear reconnection timeout
     if (this._reconnectTimeout) {
       clearTimeout(this._reconnectTimeout);
     }
 
     ws.onopen = (event: WebSocket.OpenEvent) => {
+      if (!this._connected) this._emitter.emit('connect');
       this._connected = true;
       this._isReconnecting = false;
       this._emitter.emit('open', event);
     };
 
-    ws.onerror = (event: WebSocket.ErrorEvent) => {
-      console.error('Unable connect to the server:', event);
-      this._connected = false;
-      this._isReconnecting = false;
-      if (this._started) {
-        this._reconnect();
-      }
-      this._emitter.emit('error', event);
-    };
-
     ws.onclose = (event: WebSocket.CloseEvent) => {
-      console.debug('Connection is closed');
+      if (this._connected) this._emitter.emit('disconnect');
       this._connected = false;
       this._isReconnecting = false;
-      if (this._started) {
-        this._reconnect();
-      }
+      if (this._started) this._reconnect();
       this._emitter.emit('close', event);
     };
 
-    ws.onmessage = (event: WebSocket.MessageEvent) => {
-      this._emitter.emit('message', event);
-    };
+    ws.onerror = (event: WebSocket.ErrorEvent) => this._emitter.emit('error', event.error);
+    ws.onmessage = (event: WebSocket.MessageEvent) => this._emitter.emit('message', event);
   }
 
   protected _reconnect() {

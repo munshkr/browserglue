@@ -19,8 +19,8 @@
         window.bg = new browserglue.Client();
 
         // Subscribe to all server events
-        bg.on('connect', (msg => console.log("[connect]", msg)));
-        bg.on('disconnect', (msg => console.log("[disconnect]", msg)));
+        bg.on('connect', (() => console.log("[connect]")));
+        bg.on('disconnect', (() => console.log("[disconnect]")));
         bg.on('change', (msg => console.log("[change]", msg)));
         bg.on('add-channel', (msg => console.log("[add-channel]", msg)));
         bg.on('remove-channel', (msg => console.log("[remove-channel]", msg)));
@@ -73,8 +73,9 @@
         setInterval(() => {
             const now = new Date();
             const msg = `this message was sent at ${now.toISOString()}`;
-            console.log("Publish to /bar:", msg);
-            barChannel.publish(msg);
+            if (barChannel.publish(msg)) {
+                console.log("Publish to /bar:", msg);
+            }
         }, 3000);
     })();
 </script>

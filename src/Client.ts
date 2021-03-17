@@ -58,6 +58,10 @@ class Client {
 
     this._rpcClient = buildRPCClient(url);
     this._ws = this._createEventsWebSocket();
+
+    // Subscribe a no-op listener for `error` events, to avoid the unhandled exception behaviour
+    // (see https://nodejs.org/dist/v11.13.0/docs/api/events.html#events_error_events)
+    this._emitter.on('error', () => { });
   }
 
   get connected(): boolean {
@@ -68,13 +72,18 @@ class Client {
     return { ...this._channels };
   }
 
-  connect(): void {
-    if (this.connected) return;
+  connect(): Client {
+    if (this.connected) return this;
     this._ws.connect();
+    Object.values(this._channelWss).forEach(ws => ws.connect());
+    return this;
   }
 
-  disconnect(): void {
+  disconnect(): Client {
+    if (!this.connected) return this;
     this._ws.disconnect();
+    Object.values(this._channelWss).forEach(ws => ws.disconnect());
+    return this;
   }
 
   async addChannel(path: string, port?: number, sendPort?: number): Promise<Channel> {
@@ -114,7 +123,7 @@ class Client {
 
   publish(path: string, data: any): boolean {
     const dataWs = this._channelWss[path];
-    if (!dataWs) return false;
+    if (!dataWs || !dataWs.connected) return false;
     dataWs.send(data);
     return true;
   }
@@ -148,13 +157,10 @@ class Client {
       }
     });
 
-    ws.on('open', (event: WebSocket.OpenEvent) => {
-      this._emitter.emit('connect', event);
-    });
-
-    ws.on('close', (event: WebSocket.CloseEvent) => {
-      this._emitter.emit('disconnect', event);
-    });
+    // Delegate `connect`, `disconnect` and `error` events
+    ws.on('connect', () => this._emitter.emit('connect'));
+    ws.on('disconnect', () => this._emitter.emit('disconnect'));
+    ws.on('error', (error: Error) => this._emitter.emit('error', error));
 
     return ws;
   }
@@ -166,6 +172,8 @@ class Client {
       this._emitter.emit('message', { path, data: event.data });
       this._emitter.emit(`message:${path}`, event.data);
     });
+    // Do nothing on /data errors (we already emit an error event on /events)
+    ws.on('error', () => { });
 
     return ws;
   }
