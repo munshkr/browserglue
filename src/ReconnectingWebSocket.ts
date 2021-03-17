@@ -67,10 +67,7 @@ class ReconnectingWebSocket {
     this._ws = new WebSocket(this.url);
     const ws = this._ws;
 
-    // Clear reconnection timeout
-    if (this._reconnectTimeout) {
-      clearTimeout(this._reconnectTimeout);
-    }
+    clearTimeout(this._reconnectTimeout);
 
     ws.onopen = (event: WebSocket.OpenEvent) => {
       if (!this._connected) this._emitter.emit('connect');
@@ -100,7 +97,7 @@ class ReconnectingWebSocket {
     this._isReconnecting = true;
     clearTimeout(this._reconnectTimeout);
     this._reconnectTimeout = setTimeout(() => {
-      console.debug('Reconnecting....');
+      console.debug('[ws] Reconnecting to', this.url);
       this._connect();
     }, this.reconnectTimeoutInterval);
   }
