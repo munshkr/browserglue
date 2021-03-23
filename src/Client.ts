@@ -4,6 +4,9 @@ import WebSocket from 'isomorphic-ws';
 import ReconnectingWebSocket from './ReconnectingWebSocket';
 import Channel, { ServerChannel } from './Channel';
 import { DEFAULT_PORT } from './defaults';
+import Debug from "debug";
+
+const debug = Debug("browserglue").extend("client");
 
 type ServerEventWSPayload = {
   event: string,
@@ -122,7 +125,11 @@ class Client {
 
   publish(path: string, data: any): boolean {
     const dataWs = this._channelWss[path];
-    if (!dataWs || !dataWs.connected) return false;
+    if (!dataWs || !dataWs.connected) {
+      debug("Tried to publish to %s but socket is closed or not connected", path)
+      return false;
+    }
+    debug("Publish data to %s", path)
     dataWs.send(data);
     return true;
   }
@@ -130,6 +137,7 @@ class Client {
   protected _call(cmd: string, params?: { [name: string]: any }): PromiseLike<any> {
     // The request() function returns a promise of the result.
     // TODO: Return false if not connected
+    debug("Call RPC method '%s' with params %o", cmd, params);
     return this._rpcClient.request(cmd, params);
   }
 

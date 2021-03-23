@@ -6,6 +6,9 @@ import cors from 'cors';
 import { JSONRPCServer } from 'json-rpc-2.0';
 import { EventEmitter } from 'events';
 import { DEFAULT_PORT } from './defaults';
+import Debug from "debug";
+
+const debug = Debug("browserglue").extend("server");
 
 interface ServerChannel {
   path: string;
@@ -98,8 +101,10 @@ class Server {
     const wss = new WebSocket.Server({ noServer: true });
     this._wss = wss;
 
+    const wsDebug = debug.extend('ws');
+
     wss.on('connection', (ws, req) => {
-      console.debug('[ws] connection:', req.url);
+      wsDebug('connection: %o', req.url);
 
       // TODO: Check if url is any of the valid paths (/events, /data/*), and throw error otherwise
       if (req.url.startsWith('/data')) {
@@ -110,7 +115,7 @@ class Server {
         this._wsClients[path].add(ws);
 
         ws.on('message', (data) => {
-          console.log('[ws] %s received: %s', path, data);
+          wsDebug('%s received: %s', path, data);
           this._broadcast(path, data);
         });
 
@@ -119,11 +124,11 @@ class Server {
       }
 
       ws.on('error', (err) => {
-        console.debug('[ws] client error:', err)
+        wsDebug('client error: %o', err)
       });
 
       ws.on('close', () => {
-        console.debug('[ws] client closed');
+        wsDebug('client closed');
       });
     });
 
@@ -164,18 +169,20 @@ class Server {
       });
     });
 
+    const debugServer = debug.extend('http');
+
     server.on('listening', () => {
-      console.debug('[server] listening');
+      debugServer('listening');
       this._emitter.emit('listening');
     });
 
     server.on('close', () => {
-      console.debug('[server] closed');
+      debugServer('closed');
       this._emitter.emit('close');
     });
 
     server.on('error', (err) => {
-      console.debug('[server]', err);
+      debugServer('error: %o', err);
       this._emitter.emit('error', err);
     });
 
@@ -196,11 +203,11 @@ class Server {
   addChannel(path: string, port?: number, sendPort?: number): ServerChannel | null {
     // If channel already exists, throw exception
     if (Object.keys(this._channels).includes(path)) {
-      console.error("Channel already exists");
+      debug("Channel already exists");
       return null;
     }
 
-    console.debug(`Add channel ${path}`)
+    debug(`Add channel ${path}`)
     const newChannel: ServerChannel = {
       path,
       port,
@@ -212,19 +219,21 @@ class Server {
     const socket = dgram.createSocket('udp4');
     this._sockets[path] = socket;
 
+    const udpDebug = debug.extend('udp');
+
     socket.on('listening', () => {
       const address = socket.address();
-      console.debug(`[udp] Socket binded at port ${address.port}`);
+      udpDebug(`Socket binded at port %d`, address.port);
     })
 
     socket.on('error', (err) => {
-      console.debug(`[udp] socket error:\n${err.stack}`);
+      udpDebug(`socket error:\n%o`, err.stack);
       socket.close();
       // TODO: Reject promise with error?
     });
 
     socket.on('message', (buffer, rinfo) => {
-      console.debug(`[udp] socket got: ${buffer} from ${rinfo.address}:${rinfo.port}`);
+      udpDebug(`socket got: %s from %s:%d`, port, rinfo.address, rinfo.port);
 
       // Broadcast message to all subscribed clients on /data/{path}
       const wsClients = this._wsClients[path] || [];
@@ -251,11 +260,11 @@ class Server {
   removeChannel(path: string): boolean {
     const socket = this._sockets[path];
     if (socket) {
-      console.debug(`Remove channel ${path}`);
+      debug(`Remove channel %s`, path);
       try {
         socket.close();
       } catch (err) {
-        console.warn("Socket is already closed?", err);
+        debug("Socket is already closed: %o", err);
       }
     }
     // Clean up
@@ -268,7 +277,7 @@ class Server {
   }
 
   removeAllChannels(): void {
-    console.debug("Remove all channels");
+    debug("Remove all channels");
     Object.keys(this._channels).forEach((path) => {
       this.removeChannel(path);
     });
@@ -278,7 +287,7 @@ class Server {
     if (!this._channels[path]) return false;
     const socket = this._sockets[path];
     if (!socket) return false;
-    console.log(`Bind socket of channel ${path} to port ${port}`);
+    debug(`Bind socket of channel %s to port %d`, path, port);
     socket.bind({
       address: '0.0.0.0',
       port
@@ -289,7 +298,7 @@ class Server {
 
   subscribePort(path: string, port: number): boolean {
     if (!this._channels[path]) return false;
-    console.log(`Subscribe port ${port} on channel ${path}`);
+    debug(`Subscribe port %d on channel %s`, port, path);
     if (!this._channels[path].subscribedPorts.includes(port)) {
       this._channels[path].subscribedPorts.push(port);
     }
@@ -299,7 +308,7 @@ class Server {
 
   unsubscribePort(path: string, port: number): boolean {
     if (!this._channels[path]) return false;
-    console.log(`Unsubscribe port ${port} from channel ${path}`);
+    debug(`Unsubscribe port %d from channel %s`, port, path);
     const newPorts = this._channels[path].subscribedPorts.filter(p => p != port);
     if (newPorts == this._channels[path].subscribedPorts) return false;
     this._channels[path].subscribedPorts = newPorts;
@@ -309,7 +318,7 @@ class Server {
 
   unsubscribeAllPorts(path: string): boolean {
     if (!this._channels[path]) return false;
-    console.log(`Unsubscribe all ports from channel ${path}`);
+    debug(`Unsubscribe all ports from channel %s`, path);
     const oldSubscribedPorts = this._channels[path].subscribedPorts;
     this._channels[path].subscribedPorts = [];
     oldSubscribedPorts.forEach(port => {

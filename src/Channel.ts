@@ -1,5 +1,8 @@
 import Client from "./Client";
 import EventEmitter from "events";
+import Debug from "debug";
+
+const debug = Debug("browserglue").extend("channel");
 
 interface ServerChannel {
   path: string;
@@ -27,6 +30,7 @@ class Channel {
     // Update attributes from server state (change event)
     client.on(`change:${path}`, (state: ServerChannel) => {
       const { subscribedPorts, port } = state;
+      debug("Received change from server. Update channel %s state: %o %o", path, subscribedPorts, port);
       this._subscribedPorts = subscribedPorts;
       this._port = port;
     })

@@ -2,6 +2,7 @@
 const program = require("commander");
 const packageInfo = require("../package.json");
 const { Server, defaults } = require("../dist/browserglue.node");
+const debug = require("debug")("browserglue");
 
 const { DEFAULT_PORT } = defaults;
 
@@ -13,13 +14,15 @@ program
 
 const options = program.opts();
 
+debug("Create server and connect to %s:%d", options.host, options.port);
 const server = new Server({
   host: options.host,
   port: options.port,
 });
 
 server.on("listening", () => {
-  console.log(`Server listening on ${server.host}:${server.port}`);
+  process.stderr.write(`Server listening on ${server.host}:${server.port}\n`);
 });
 
+debug("Start server");
 server.start();
