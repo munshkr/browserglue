@@ -12,6 +12,11 @@
     <h1>browserglue testbed</h1>
     <p>Open the Developer Tools and check the console log. You can use a browserglue client at <code>bg</code>
         (<code>window.bg</code>).</p>
+    <p>You can also enable debug logging messages by setting `localStorage.debug` to `browserglue*`, like this</p>
+    <code>
+        localStorage.debug = 'browserglue*'
+    </code>
+    <p>You need to refresh the page for this setting to take effect.</p>
 </body>
 <script src="browserglue.js"></script>
 <script type="text/javascript">
