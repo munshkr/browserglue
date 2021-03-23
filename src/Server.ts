@@ -193,11 +193,11 @@ class Server {
     return this._emitter.on(event, cb);
   }
 
-  addChannel(path: string, port?: number, sendPort?: number): ServerChannel {
+  addChannel(path: string, port?: number, sendPort?: number): ServerChannel | null {
     // If channel already exists, throw exception
     if (Object.keys(this._channels).includes(path)) {
       console.error("Channel already exists");
-      throw 'Channel already exists';
+      return null;
     }
 
     console.debug(`Add channel ${path}`)

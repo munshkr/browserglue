@@ -85,9 +85,9 @@ class Client {
     return this;
   }
 
-  async addChannel(path: string, port?: number, sendPort?: number): Promise<Channel> {
-    const c: ServerChannel = await this._call("addChannel", { path, port, sendPort });
-    return this._createChannel(c);
+  async addChannel(path: string, port?: number, sendPort?: number): Promise<Channel | null> {
+    const c: ServerChannel | null = await this._call("addChannel", { path, port, sendPort });
+    return c && this._createChannel(c);
   }
 
   async removeChannel(path: string): Promise<void> {
