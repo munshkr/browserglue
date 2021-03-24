@@ -13,6 +13,14 @@ type ServerEventWSPayload = {
   message: Object,
 }
 
+type AddChannelEventPayload = {
+  path: string
+}
+
+type RemoveChannelEventPayload = {
+  path: string
+}
+
 const buildRPCClient = (wsUrl: string): JSONRPCClient => {
   const [scheme, hostnamePort] = wsUrl.split('://');
   const secure = scheme == 'wss';
@@ -137,7 +145,7 @@ class Client {
   protected _call(cmd: string, params?: { [name: string]: any }): PromiseLike<any> {
     // The request() function returns a promise of the result.
     // TODO: Return false if not connected
-    debug("Call RPC method '%s' with params %o", cmd, params);
+    debug("Call RPC method '%s' with params %O", cmd, params);
     return this._rpcClient.request(cmd, params);
   }
 
@@ -147,22 +155,38 @@ class Client {
     ws.on('message', (ev: WebSocket.MessageEvent) => {
       const payload = JSON.parse(ev.data as string) as ServerEventWSPayload;
       const { event, message } = payload;
-      this._emitter.emit(event, message);
 
       // Emit `change:${path}` events so that each Channel instance gets updated
-      if (event == 'change') {
-        const channels = message as { [path: string]: ServerChannel };
-        // Update existing or create new channels
-        Object.entries(channels).forEach(([path, c]: [string, ServerChannel]) => {
-          // Make sure Channel instance exists and is stored
-          if (!this.channels[path]) this._createChannel(c);
-          this._emitter.emit(`change:${path}`, c);
-        });
-        // Delete removed channels
-        const removedChannels = Object.keys(this.channels)
-          .filter(path => !Object.keys(channels).includes(path));
-        removedChannels.forEach(path => this._deleteChannel(path));
+      switch (event) {
+        case 'change': {
+          const channels = message as { [path: string]: ServerChannel };
+          // Update existing channels, or create new channels
+          Object.entries(channels).forEach(([path, c]: [string, ServerChannel]) => {
+            // Make sure Channel instance exists and is stored
+            if (!this.channels[path]) this._createChannel(c);
+            this._emitter.emit(`change:${path}`, c);
+          });
+          // Delete removed channels
+          const removedChannels = Object.keys(this.channels)
+            .filter(path => !Object.keys(channels).includes(path));
+          removedChannels.forEach(path => this._deleteChannel(path));
+          break;
+        }
+        case 'add-channel': {
+          const { path } = message as AddChannelEventPayload;
+          const c: ServerChannel = { path, port: null, subscribedPorts: [] }
+          this._createChannel(c);
+          break;
+        }
+        case 'remove-channel': {
+          const { path } = message as RemoveChannelEventPayload;
+          this._deleteChannel(path);
+          break;
+        }
       }
+
+      // Finally, emit this as a client event
+      this._emitter.emit(event, message);
     });
 
     // Delegate `connect`, `disconnect` and `error` events
@@ -199,9 +223,11 @@ class Client {
   protected _deleteChannel(path: string): void {
     const dataWs = this._channelWss[path];
     if (dataWs) dataWs.disconnect();
+    this._emitter.emit(`remove-channel:${path}`);
     this._emitter.removeAllListeners(`change:${path}`);
+    this._emitter.removeAllListeners(`remove-channel:${path}`);
     // TODO: Remove all listeners from `*:${path}`
-    // ...is it even possible without storing myself all handled events?
+    // ...is it possible without storing myself all handled events?
     delete this._channelWss[path];
     delete this._channels[path];
   }

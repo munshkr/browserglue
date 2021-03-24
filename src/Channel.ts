@@ -6,7 +6,7 @@ const debug = Debug("browserglue").extend("channel");
 
 interface ServerChannel {
   path: string;
-  port: number;
+  port?: number;
   subscribedPorts: number[];
 }
 
@@ -33,7 +33,12 @@ class Channel {
       debug("Received change from server. Update channel %s state: %o %o", path, subscribedPorts, port);
       this._subscribedPorts = subscribedPorts;
       this._port = port;
-    })
+    });
+
+    // Make sure to close this channel if it was removed on server
+    client.on(`remove-channel:${path}`, () => {
+      this._open = false;
+    });
   }
 
   get port(): number {
