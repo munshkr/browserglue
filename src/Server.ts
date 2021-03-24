@@ -121,6 +121,11 @@ class Server {
 
       } else if (req.url.startsWith('/events')) {
         this._wsEventClients.add(ws);
+
+        // Send a "change" payload so that client has the latest server state
+        debug("Send first 'change' event to have latest state");
+        const payload = { event: "change", message: this._channels };
+        ws.send(JSON.stringify(payload));
       }
 
       ws.on('error', (err) => {
