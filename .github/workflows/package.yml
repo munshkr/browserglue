@@ -1,0 +1,42 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CD
+
+on:
+  #push:
+  #  tags:
+  #  - 'v*'    
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v2.1.5
+
+      - name: Install dependencies
+        run: yarn install
+        
+      - name: Build library
+        run: yarn build
+        
+      - name: Package binaries
+        run: npx pkg .
+        
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            browserglue-linux
+            browserglue-macos
+            browserglue-win.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
