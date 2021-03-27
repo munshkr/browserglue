@@ -24,6 +24,7 @@ interface ServerOptions {
 type AddChannelParams = { path: string, port?: number, sendPort?: number };
 type RemoveChannelParams = { path: string };
 type BindPortParams = { path: string, port: number };
+type UnbindPortParams = { path: string };
 type SubscribePortParams = { path: string, port: number };
 type UnsubscribePortParams = { path: string, port: number };
 type UnsubscribeAllPortsParams = { path: string };
@@ -47,6 +48,10 @@ const buildRPCServer = (server: Server) => {
 
   rpcServer.addMethod("bindPort", ({ path, port }: BindPortParams) => {
     return server.bindPort(path, port);
+  })
+
+  rpcServer.addMethod("unbindPort", ({ path }: UnbindPortParams) => {
+    return server.unbindPort(path);
   })
 
   rpcServer.addMethod("subscribePort", ({ path, port }: SubscribePortParams) => {
@@ -264,11 +269,10 @@ class Server {
   }
 
   bindPort(path: string, port: number): boolean {
-    if (!this._channels[path]) return false;
+    const channel = this._channels[path];
+    if (!channel) return false;
 
     const socket = this._sockets[path];
-    if (!socket) return false;
-
     const udpDebug = debug.extend('udp');
 
     socket.on('listening', () => {
@@ -296,9 +300,31 @@ class Server {
 
     debug(`Bind socket of channel %s to port %d`, path, port);
     socket.bind({ address: '0.0.0.0', port });
+    channel.port = port;
 
     this._emitter.emit("bind-port", { path, port });
 
+    return true;
+  }
+
+  unbindPort(path: string): boolean {
+    const channel = this._channels[path];
+    if (!channel) return false;
+
+    // Try to close socket
+    const oldSocket = this._sockets[path];
+    try {
+      oldSocket.close();
+    } catch (err) {
+      debug("Socket is already closed: %o", err);
+    }
+    channel.port = null;
+
+    // Create new socket
+    const socket = dgram.createSocket('udp4');
+    this._sockets[path] = socket;
+
+    this._emitter.emit("unbind-port", { path });
     return true;
   }
 

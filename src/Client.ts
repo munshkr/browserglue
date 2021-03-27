@@ -114,6 +114,10 @@ class Client {
     return this._call("bindPort", { path, port });
   }
 
+  unbindPort(path: string): PromiseLike<boolean> {
+    return this._call("unbindPort", { path });
+  }
+
   subscribePort(path: string, port: number): PromiseLike<boolean> {
     return this._call("subscribePort", { path, port });
   }
