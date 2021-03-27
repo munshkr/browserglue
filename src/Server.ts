@@ -46,7 +46,7 @@ const buildRPCServer = (server: Server) => {
   })
 
   rpcServer.addMethod("bindPort", ({ path, port }: BindPortParams) => {
-    server.bindPort(path, port);
+    return server.bindPort(path, port);
   })
 
   rpcServer.addMethod("subscribePort", ({ path, port }: SubscribePortParams) => {
@@ -224,31 +224,6 @@ class Server {
     const socket = dgram.createSocket('udp4');
     this._sockets[path] = socket;
 
-    const udpDebug = debug.extend('udp');
-
-    socket.on('listening', () => {
-      const address = socket.address();
-      udpDebug(`Socket binded at port %d`, address.port);
-    })
-
-    socket.on('error', (err) => {
-      udpDebug(`socket error:\n%o`, err.stack);
-      socket.close();
-      // TODO: Reject promise with error?
-    });
-
-    socket.on('message', (buffer, rinfo) => {
-      udpDebug(`socket got: %s from %s:%d`, port, rinfo.address, rinfo.port);
-
-      // Broadcast message to all subscribed clients on /data/{path}
-      const wsClients = this._wsClients[path] || [];
-      wsClients.forEach((client: WebSocket) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(buffer);
-        }
-      })
-    })
-
     // If port argument is present, bind it
     if (port) {
       this.bindPort(path, port);
@@ -290,14 +265,40 @@ class Server {
 
   bindPort(path: string, port: number): boolean {
     if (!this._channels[path]) return false;
+
     const socket = this._sockets[path];
     if (!socket) return false;
-    debug(`Bind socket of channel %s to port %d`, path, port);
-    socket.bind({
-      address: '0.0.0.0',
-      port
+
+    const udpDebug = debug.extend('udp');
+
+    socket.on('listening', () => {
+      const address = socket.address();
+      udpDebug(`Socket binded at port %d`, address.port);
+    })
+
+    socket.on('error', (err) => {
+      udpDebug(`socket error:\n%o`, err.stack);
+      socket.close();
+      // TODO: Reject promise with error?
     });
+
+    socket.on('message', (buffer, rinfo) => {
+      udpDebug(`socket got: %s from %s:%d`, port, rinfo.address, rinfo.port);
+
+      // Broadcast message to all subscribed clients on /data/{path}
+      const wsClients = this._wsClients[path] || [];
+      wsClients.forEach((client: WebSocket) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(buffer);
+        }
+      })
+    });
+
+    debug(`Bind socket of channel %s to port %d`, path, port);
+    socket.bind({ address: '0.0.0.0', port });
+
     this._emitter.emit("bind-port", { path, port });
+
     return true;
   }
 
