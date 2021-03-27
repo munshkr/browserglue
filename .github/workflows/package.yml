@@ -3,14 +3,9 @@
 name: CD
 
 on:
-  #push:
-  #  tags:
-  #  - 'v*'    
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+   tags:
+   - 'v*'
 
 jobs:
   build-and-release:
