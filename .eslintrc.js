@@ -19,6 +19,7 @@ module.exports = {
     "extends": [
         "plugin:@typescript-eslint/recommended",
         "plugin:@typescript-eslint/recommended-requiring-type-checking",
+        "plugin:prettier/recommended",
         "prettier",
         "prettier/@typescript-eslint"
     ],
@@ -34,6 +35,7 @@ module.exports = {
         "@typescript-eslint"
     ],
     "rules": {
+        "prettier/prettier": "error",
         "@typescript-eslint/adjacent-overload-signatures": "error",
         "@typescript-eslint/array-type": [
             "error",
