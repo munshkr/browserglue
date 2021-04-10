@@ -8,6 +8,8 @@
     "outDir": "./lib"
   },
   "include": [
+    "./.eslintrc.js",
+    "./*",
     "./src/**/*"
   ]
 }
