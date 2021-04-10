@@ -64,6 +64,11 @@ class Channel {
     return this._client.bindPort(this.path, port);
   }
 
+  async unbindPort(port: number): Promise<boolean> {
+    if (!this._open) return false;
+    return this._client.unbindPort(this.path);
+  }
+
   async subscribePort(port: number): Promise<boolean> {
     if (!this._open) return false;
     return await this._client.subscribePort(this.path, port);
