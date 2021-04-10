@@ -273,6 +273,23 @@ class Server {
     const channel = this._channels[path];
     if (!channel) return false;
 
+    if (channel.port) {
+      if (channel.port === port) {
+        debug(`Channel %s socket already binded to %d`, path, port);
+        return false;
+      }
+
+      debug(
+        `Channel %s already has a binded port at %d. ` +
+        `Will re-create socket.`, path, channel.port);
+      try {
+        this._sockets[path].close();
+      } catch (err) {
+        debug("Socket is already closed: %o", err);
+      }
+      this._sockets[path] = dgram.createSocket('udp4');
+    }
+
     const socket = this._sockets[path];
     const udpDebug = debug.extend('udp');
 
