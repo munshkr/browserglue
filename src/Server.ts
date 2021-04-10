@@ -74,6 +74,7 @@ const eventsToBroadcast = [
   'add-channel',
   'remove-channel',
   'bind-port',
+  'unbind-port',
   'subscribe-port',
   'unsubscribe-port'
 ];
@@ -310,6 +311,8 @@ class Server {
   unbindPort(path: string): boolean {
     const channel = this._channels[path];
     if (!channel) return false;
+
+    debug(`Unbind port of socket channel %s`, path);
 
     // Try to close socket
     const oldSocket = this._sockets[path];
