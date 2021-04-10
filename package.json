@@ -14,7 +14,7 @@
   "scripts": {
     "dev": "node devserver.js",
     "build": "webpack --config webpack.prod.js",
-    "lint": "eslint",
+    "lint": "pretty-quick --staged && lint-staged",
     "docs": "typedoc --media media/",
     "test": "exit 0",
     "prepare": "husky install"
@@ -38,6 +38,7 @@
     "jest": "^26.6.3",
     "lint-staged": ">=10",
     "prettier": "^2.2.1",
+    "pretty-quick": "^3.1.0",
     "ts-jest": "^26.5.3",
     "ts-loader": "^8.0.17",
     "typedoc": "^0.20.30",
@@ -62,6 +63,11 @@
   "optionalDependencies": {
     "bufferutil": "^4.0.3",
     "utf-8-validate": "^5.0.4"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "yarn lint"
+    }
   },
   "lint-staged": {
     "*.{ts,js}": "eslint --cache --fix"
