@@ -1,4 +1,8 @@
 import Client from './Client';
 import Channel from './Channel';
 
-export { Client, Channel };
+declare var __VERSION__: string;
+
+const version = __VERSION__;
+
+export { Client, Channel, version };
