@@ -73,6 +73,8 @@ class Client {
     // Subscribe a no-op listener for `error` events, to avoid the unhandled exception behaviour
     // (see https://nodejs.org/dist/v11.13.0/docs/api/events.html#events_error_events)
     this._emitter.on('error', () => { });
+
+    this._checkVersion();
   }
 
   get connected(): boolean {
@@ -94,6 +96,10 @@ class Client {
     this._ws.disconnect();
     Object.values(this._channelWss).forEach(ws => ws.disconnect());
     return this;
+  }
+
+  async getServerVersion(): Promise<string> {
+    return this._call("getVersion");
   }
 
   async addChannel(path: string, port?: number, sendPort?: number): Promise<Channel> {
@@ -218,7 +224,7 @@ class Client {
     const { path, subscribedPorts, port } = attrs;
     const channel = new Channel(this, path, subscribedPorts, port);
     if (!this._channelWss[path]) {
-      this._channelWss[path] = this._createDataWebSocket(path);;
+      this._channelWss[path] = this._createDataWebSocket(path);
     }
     this._channels[path] = channel;
     return channel;
@@ -234,6 +240,26 @@ class Client {
     // ...is it possible without storing myself all handled events?
     delete this._channelWss[path];
     delete this._channels[path];
+  }
+
+  protected async _checkVersion() {
+    this.getServerVersion().then(serverVersion => {
+      if (serverVersion != __VERSION__) {
+        const [serverMajor, serverMinor, serverPatch] = serverVersion.split('.');
+        const [major, minor, patch] = __VERSION__.split('.');
+
+        let text = `Browserglue server version is ${serverVersion}, but the client expects ${__VERSION__}.\n`;
+        if (serverMajor != major) {
+          text += `API might have changed completely, so please make sure you are using the same version.\n`;
+        } else if (serverMinor != minor) {
+          text += `API should not have changed, but it is still recommended to use the same version.\n`;
+        } else if (serverPatch != patch) {
+          text += `Only patch version is different, so it should be safe to use.\n`
+        }
+        text += `You can download the right one at https://github.com/munshkr/browserglue/releases`;
+        console.warn(text);
+      }
+    })
   }
 }
 

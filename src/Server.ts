@@ -34,6 +34,10 @@ const buildRPCServer = (server: Server) => {
   const rpcServer = new JSONRPCServer();
 
   // Define RPC methods
+  rpcServer.addMethod("getVersion", () => {
+    return __VERSION__;
+  })
+
   rpcServer.addMethod("addChannel", ({ path, port, sendPort }: AddChannelParams) => {
     return server.addChannel(path, port, sendPort);
   })
