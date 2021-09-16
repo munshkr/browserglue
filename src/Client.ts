@@ -245,16 +245,14 @@ class Client {
   protected async _checkVersion() {
     this.getServerVersion().then(serverVersion => {
       if (serverVersion != __VERSION__) {
-        const [serverMajor, serverMinor, serverPatch] = serverVersion.split('.');
-        const [major, minor, patch] = __VERSION__.split('.');
+        const [serverMajor, serverMinor, _serverPatch] = serverVersion.split('.');
+        const [major, minor, _patch] = __VERSION__.split('.');
 
         let text = `Browserglue server version is ${serverVersion}, but the client expects ${__VERSION__}.\n`;
         if (serverMajor != major) {
           text += `API might have changed completely, so please make sure you are using the same version.\n`;
         } else if (serverMinor != minor) {
           text += `API should not have changed, but it is still recommended to use the same version.\n`;
-        } else if (serverPatch != patch) {
-          text += `Only patch version is different, so it should be safe to use.\n`
         }
         text += `You can download the right one at https://github.com/munshkr/browserglue/releases`;
         console.warn(text);
