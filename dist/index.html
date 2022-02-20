@@ -21,7 +21,8 @@
 <script src="browserglue.js"></script>
 <script type="text/javascript">
     (async () => {
-        window.bg = new browserglue.Client();
+        const { Client, Message } = browserglue;
+        window.bg = new Client();
 
         // Subscribe to all server events
         bg.on('connect', (() => console.log("[connect]")));
@@ -39,7 +40,7 @@
         console.log("Add channel /foo binded to udp:4000")
         const channel = await bg.addChannel("/foo", 4000);
         // Handle messages
-        channel.on('message', async blob => {
+        channel.on('message', async msg => {
             const text = await blob.text();
             console.log("[/foo]", text);
         });
@@ -60,9 +61,8 @@
         console.log("Subscribe port 5011 on /bar");
         barChannel.subscribePort(5011);
         // Handle messages
-        barChannel.on('message', async blob => {
-            const text = await blob.text();
-            console.log("[/bar]", text);
+        barChannel.on('message', msg => {
+            console.log("[/bar]", msg.args);
         });
 
         // Remove channel after 3 seconds
@@ -77,9 +77,10 @@
 
         setInterval(() => {
             const now = new Date();
-            const msg = `this message was sent at ${now.toISOString()}`;
-            if (barChannel.publish(msg)) {
-                console.log("Publish to /bar:", msg);
+            // const msg = `this message was sent at ${now.toISOString()}`;
+            const msg = new Message("/myaddress/1", 42, now.toISOString());
+            if (barChannel.publish(msg.pack())) {
+                console.log("Publish to /bar:", msg.args);
             }
         }, 3000);
     })();

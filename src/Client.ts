@@ -10,6 +10,7 @@ import ReconnectingWebSocket from "./ReconnectingWebSocket";
 import Channel, { ServerChannel } from "./Channel";
 import { DEFAULT_PORT } from "./defaults";
 import Debug from "debug";
+import OSC from "osc-js";
 
 const debug = Debug("browserglue").extend("client");
 
@@ -234,9 +235,18 @@ class Client {
   protected _createDataWebSocket(path: string): ReconnectingWebSocket {
     const ws = new ReconnectingWebSocket(`${this.url}/data${path}`);
 
-    ws.on("message", (event: WebSocket.MessageEvent) => {
-      this._emitter.emit("message", { path, data: event.data });
-      this._emitter.emit(`message:${path}`, event.data);
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    void ws.on("message", (event: WebSocket.MessageEvent) => {
+      // const binary = new DataView(event.data);
+      debug("Received message on %s", path);
+      try {
+        const msg = new OSC.Message();
+        msg.unpack(event.data);
+        this._emitter.emit("message", { path, msg });
+        this._emitter.emit(`message:${path}`, msg);
+      } catch (e) {
+        console.error("Error:", e);
+      }
     });
     // Do nothing on /data errors (we already emit an error event on /events)
     // eslint-disable-next-line @typescript-eslint/no-empty-function

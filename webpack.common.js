@@ -30,7 +30,7 @@ const nodeConfig = {
     filename: "browserglue.node.js",
     library: "browserglue",
     libraryTarget: "umd",
-    publicPath: "/"
+    publicPath: "/",
   },
 };
 
@@ -49,6 +49,9 @@ const browserConfig = {
   },
   resolve: {
     extensions: [".ts", ".js"],
+    fallback: {
+      dgram: false, // do not include a polyfill for dgram
+    },
   },
   plugins,
   output: {

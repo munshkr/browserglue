@@ -8,9 +8,4 @@ import { Message, Bundle } from "osc-js";
 
 const version = __VERSION__;
 
-const OSC = {
-  Message,
-  Bundle,
-};
-
-export { Client, Channel, Server, OSC, version, defaults };
+export { Client, Channel, Server, Message, Bundle, version, defaults };
