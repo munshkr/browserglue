@@ -1,30 +1,35 @@
-import { JSONRPCClient } from 'json-rpc-2.0';
-import { EventEmitter } from 'events';
-import WebSocket from 'isomorphic-ws';
-import ReconnectingWebSocket from './ReconnectingWebSocket';
-import Channel, { ServerChannel } from './Channel';
-import { DEFAULT_PORT } from './defaults';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+import { JSONRPCClient } from "json-rpc-2.0";
+import { EventEmitter } from "events";
+import WebSocket from "isomorphic-ws";
+import ReconnectingWebSocket from "./ReconnectingWebSocket";
+import Channel, { ServerChannel } from "./Channel";
+import { DEFAULT_PORT } from "./defaults";
 import Debug from "debug";
 
 const debug = Debug("browserglue").extend("client");
 
 type ServerEventWSPayload = {
-  event: string,
-  message: Object,
-}
+  event: string;
+  message: any;
+};
 
 type AddChannelEventPayload = {
-  path: string
-}
+  path: string;
+};
 
 type RemoveChannelEventPayload = {
-  path: string
-}
+  path: string;
+};
 
 const buildRPCClient = (wsUrl: string): JSONRPCClient => {
-  const [scheme, hostnamePort] = wsUrl.split('://');
-  const secure = scheme == 'wss';
-  const httpScheme = secure ? 'https' : 'http';
+  const [scheme, hostnamePort] = wsUrl.split("://");
+  const secure = scheme === "wss";
+  const httpScheme = secure ? "https" : "http";
   const url = `${httpScheme}://${hostnamePort}/json-rpc`;
 
   // JSONRPCClient needs to know how to send a JSON-RPC request.
@@ -37,7 +42,7 @@ const buildRPCClient = (wsUrl: string): JSONRPCClient => {
       },
       body: JSON.stringify(jsonRPCRequest),
     }).then((response) => {
-      if (response.status == 200) {
+      if (response.status === 200) {
         // Use client.receive when you received a JSON-RPC response.
         return response
           .json()
@@ -49,7 +54,7 @@ const buildRPCClient = (wsUrl: string): JSONRPCClient => {
   );
 
   return client;
-}
+};
 
 class Client {
   readonly url: string;
@@ -60,7 +65,7 @@ class Client {
   protected _ws: ReconnectingWebSocket;
   protected _channelWss: { [path: string]: ReconnectingWebSocket };
 
-  constructor(url: string = `ws://localhost:${DEFAULT_PORT}`) {
+  constructor(url = `ws://localhost:${DEFAULT_PORT}`) {
     this.url = url;
 
     this._emitter = new EventEmitter();
@@ -72,9 +77,10 @@ class Client {
 
     // Subscribe a no-op listener for `error` events, to avoid the unhandled exception behaviour
     // (see https://nodejs.org/dist/v11.13.0/docs/api/events.html#events_error_events)
-    this._emitter.on('error', () => { });
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    this._emitter.on("error", () => {});
 
-    this._checkVersion();
+    void this._checkVersion();
   }
 
   get connected(): boolean {
@@ -88,13 +94,13 @@ class Client {
   connect(): Client {
     if (this.connected) return this;
     this._ws.connect();
-    Object.values(this._channelWss).forEach(ws => ws.connect());
+    Object.values(this._channelWss).forEach((ws) => ws.connect());
     return this;
   }
 
   disconnect(): Client {
     this._ws.disconnect();
-    Object.values(this._channelWss).forEach(ws => ws.disconnect());
+    Object.values(this._channelWss).forEach((ws) => ws.disconnect());
     return this;
   }
 
@@ -102,8 +108,16 @@ class Client {
     return this._call("getVersion");
   }
 
-  async addChannel(path: string, port?: number, sendPort?: number): Promise<Channel> {
-    const c: ServerChannel = await this._call("addChannel", { path, port, sendPort });
+  async addChannel(
+    path: string,
+    port?: number,
+    sendPort?: number
+  ): Promise<Channel> {
+    const c: ServerChannel = await this._call("addChannel", {
+      path,
+      port,
+      sendPort,
+    });
     return this.channels[path] || this._createChannel(c);
   }
 
@@ -136,23 +150,30 @@ class Client {
     return this._call("unsubscribeAllPorts", { path });
   }
 
-  on(type: string, cb: (message: Object) => void): Client {
+  on(type: string, cb: (message: any) => void): Client {
     this._emitter.on(type, cb);
     return this;
   }
 
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   publish(path: string, data: any): boolean {
     const dataWs = this._channelWss[path];
     if (!dataWs || !dataWs.connected) {
-      debug("Tried to publish to %s but socket is closed or not connected", path)
+      debug(
+        "Tried to publish to %s but socket is closed or not connected",
+        path
+      );
       return false;
     }
-    debug("Publish data to %s", path)
+    debug("Publish data to %s", path);
     dataWs.send(data);
     return true;
   }
 
-  protected _call(cmd: string, params?: { [name: string]: any }): PromiseLike<any> {
+  protected _call(
+    cmd: string,
+    params?: { [name: string]: any }
+  ): PromiseLike<any> {
     // The request() function returns a promise of the result.
     // TODO: Return false if not connected
     debug("Call RPC method '%s' with params %O", cmd, params);
@@ -162,33 +183,36 @@ class Client {
   protected _createEventsWebSocket(): ReconnectingWebSocket {
     const ws = new ReconnectingWebSocket(`${this.url}/events`);
 
-    ws.on('message', (ev: WebSocket.MessageEvent) => {
+    ws.on("message", (ev: WebSocket.MessageEvent) => {
       const payload = JSON.parse(ev.data as string) as ServerEventWSPayload;
       const { event, message } = payload;
 
       // Emit `change:${path}` events so that each Channel instance gets updated
       switch (event) {
-        case 'change': {
+        case "change": {
           const channels = message as { [path: string]: ServerChannel };
           // Update existing channels, or create new channels
-          Object.entries(channels).forEach(([path, c]: [string, ServerChannel]) => {
-            // Make sure Channel instance exists and is stored
-            if (!this.channels[path]) this._createChannel(c);
-            this._emitter.emit(`change:${path}`, c);
-          });
+          Object.entries(channels).forEach(
+            ([path, c]: [string, ServerChannel]) => {
+              // Make sure Channel instance exists and is stored
+              if (!this.channels[path]) this._createChannel(c);
+              this._emitter.emit(`change:${path}`, c);
+            }
+          );
           // Delete removed channels
-          const removedChannels = Object.keys(this.channels)
-            .filter(path => !Object.keys(channels).includes(path));
-          removedChannels.forEach(path => this._deleteChannel(path));
+          const removedChannels = Object.keys(this.channels).filter(
+            (path) => !Object.keys(channels).includes(path)
+          );
+          removedChannels.forEach((path) => this._deleteChannel(path));
           break;
         }
-        case 'add-channel': {
+        case "add-channel": {
           const { path } = message as AddChannelEventPayload;
-          const c: ServerChannel = { path, port: null, subscribedPorts: [] }
+          const c: ServerChannel = { path, port: null, subscribedPorts: [] };
           this._createChannel(c);
           break;
         }
-        case 'remove-channel': {
+        case "remove-channel": {
           const { path } = message as RemoveChannelEventPayload;
           this._deleteChannel(path);
           break;
@@ -200,22 +224,23 @@ class Client {
     });
 
     // Delegate `connect`, `disconnect` and `error` events
-    ws.on('connect', () => this._emitter.emit('connect'));
-    ws.on('disconnect', () => this._emitter.emit('disconnect'));
-    ws.on('error', (error: Error) => this._emitter.emit('error', error));
+    ws.on("connect", () => this._emitter.emit("connect"));
+    ws.on("disconnect", () => this._emitter.emit("disconnect"));
+    ws.on("error", (error: Error) => this._emitter.emit("error", error));
 
     return ws;
   }
 
-  protected _createDataWebSocket(path: string) {
+  protected _createDataWebSocket(path: string): ReconnectingWebSocket {
     const ws = new ReconnectingWebSocket(`${this.url}/data${path}`);
 
-    ws.on('message', (event: WebSocket.MessageEvent) => {
-      this._emitter.emit('message', { path, data: event.data });
+    ws.on("message", (event: WebSocket.MessageEvent) => {
+      this._emitter.emit("message", { path, data: event.data });
       this._emitter.emit(`message:${path}`, event.data);
     });
     // Do nothing on /data errors (we already emit an error event on /events)
-    ws.on('error', () => { });
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    ws.on("error", () => {});
 
     return ws;
   }
@@ -242,22 +267,27 @@ class Client {
     delete this._channels[path];
   }
 
-  protected async _checkVersion() {
-    this.getServerVersion().then(serverVersion => {
-      if (serverVersion != __VERSION__) {
-        const [serverMajor, serverMinor, _serverPatch] = serverVersion.split('.');
-        const [major, minor, _patch] = __VERSION__.split('.');
+  protected _checkVersion(): void {
+    void this.getServerVersion().then((serverVersion) => {
+      if (serverVersion !== __VERSION__) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const [serverMajor, serverMinor, _serverPatch] = serverVersion.split(
+          "."
+        );
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const [major, minor, _patch] = __VERSION__.split(".");
 
         let text = `Browserglue server version is ${serverVersion}, but the client expects ${__VERSION__}.\n`;
-        if (serverMajor != major) {
+        if (serverMajor !== major) {
           text += `API might have changed completely, so please make sure you are using the same version.\n`;
-        } else if (serverMinor != minor) {
+        } else if (serverMinor !== minor) {
           text += `API should not have changed, but it is still recommended to use the same version.\n`;
         }
         text += `You can download the right one at https://github.com/munshkr/browserglue/releases`;
+        // eslint-disable-next-line no-console
         console.warn(text);
       }
-    })
+    });
   }
 }
 

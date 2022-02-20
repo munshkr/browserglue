@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 import Client from "./Client";
 import EventEmitter from "events";
 import Debug from "debug";
@@ -19,7 +20,12 @@ class Channel {
   protected _open: boolean;
   protected _emitter: EventEmitter;
 
-  constructor(client: Client, path: string, subscribedPorts: number[], port?: number) {
+  constructor(
+    client: Client,
+    path: string,
+    subscribedPorts: number[],
+    port?: number
+  ) {
     this.path = path;
 
     this._client = client;
@@ -29,8 +35,14 @@ class Channel {
 
     // Update attributes from server state (change event)
     client.on(`change:${path}`, (state: ServerChannel) => {
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       const { subscribedPorts, port } = state;
-      debug("Received change from server. Update channel %s state: %o %o", path, subscribedPorts, port);
+      debug(
+        "Received change from server. Update channel %s state: %o %o",
+        path,
+        subscribedPorts,
+        port
+      );
       this._subscribedPorts = subscribedPorts;
       this._port = port;
     });
@@ -54,6 +66,7 @@ class Channel {
     return this;
   }
 
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   publish(data: any): boolean {
     if (!this._open) return false;
     return this._client.publish(this.path, data);

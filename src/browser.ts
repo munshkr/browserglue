@@ -1,5 +1,5 @@
-import Client from './Client';
-import Channel from './Channel';
+import Client from "./Client";
+import Channel from "./Channel";
 
 const version = __VERSION__;
 
