@@ -79,7 +79,7 @@
             const now = new Date();
             // const msg = `this message was sent at ${now.toISOString()}`;
             const msg = new Message("/myaddress/1", 42, now.toISOString());
-            if (barChannel.publish(msg.pack())) {
+            if (barChannel.publish(msg)) {
                 console.log("Publish to /bar:", msg.args);
             }
         }, 3000);

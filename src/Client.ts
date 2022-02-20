@@ -157,7 +157,7 @@ class Client {
   }
 
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-  publish(path: string, data: any): boolean {
+  publish(path: string, msg: OSC.Message | OSC.Bundle): boolean {
     const dataWs = this._channelWss[path];
     if (!dataWs || !dataWs.connected) {
       debug(
@@ -167,7 +167,8 @@ class Client {
       return false;
     }
     debug("Publish data to %s", path);
-    dataWs.send(data);
+    const binary = msg.pack();
+    dataWs.send(binary);
     return true;
   }
 
@@ -233,19 +234,22 @@ class Client {
   }
 
   protected _createDataWebSocket(path: string): ReconnectingWebSocket {
-    const ws = new ReconnectingWebSocket(`${this.url}/data${path}`);
+    const ws = new ReconnectingWebSocket(`${this.url}/data${path}`, {
+      binaryType: "arraybuffer",
+    });
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     void ws.on("message", (event: WebSocket.MessageEvent) => {
-      // const binary = new DataView(event.data);
       debug("Received message on %s", path);
       try {
         const msg = new OSC.Message();
-        msg.unpack(event.data);
+        const binary = new DataView(event.data as ArrayBuffer);
+        msg.unpack(binary);
         this._emitter.emit("message", { path, msg });
         this._emitter.emit(`message:${path}`, msg);
-      } catch (e) {
-        console.error("Error:", e);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to parse OSC message:", err);
       }
     });
     // Do nothing on /data errors (we already emit an error event on /events)

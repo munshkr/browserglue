@@ -5,11 +5,13 @@ import { EventEmitter } from "events";
 interface Options {
   autoConnect?: boolean;
   reconnectTimeoutInterval?: number;
+  binaryType?: "arraybuffer" | "blob";
 }
 
 class ReconnectingWebSocket {
   url: string;
   reconnectTimeoutInterval: number;
+  binaryType?: string;
 
   protected _ws: WebSocket;
   protected _emitter: EventEmitter;
@@ -19,17 +21,18 @@ class ReconnectingWebSocket {
   protected _isReconnecting: boolean;
 
   constructor(url: string, options?: Options) {
-    const { autoConnect, reconnectTimeoutInterval }: Options = Object.assign(
-      {},
-      options,
-      {
-        autoConnect: true,
-        reconnectTimeoutInterval: 5000,
-      }
-    );
+    const {
+      autoConnect,
+      reconnectTimeoutInterval,
+      binaryType,
+    }: Options = Object.assign({}, options, {
+      autoConnect: true,
+      reconnectTimeoutInterval: 5000,
+    });
 
     this.url = url;
     this.reconnectTimeoutInterval = reconnectTimeoutInterval;
+    this.binaryType = binaryType;
 
     this._started = false;
     this._connected = false;
@@ -75,6 +78,10 @@ class ReconnectingWebSocket {
 
     this._ws = new WebSocket(this.url);
     const ws = this._ws;
+
+    if (this.binaryType) {
+      ws.binaryType = this.binaryType;
+    }
 
     clearTimeout(this._reconnectTimeout);
 

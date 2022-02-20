@@ -2,6 +2,7 @@
 import Client from "./Client";
 import EventEmitter from "events";
 import Debug from "debug";
+import OSC from "osc-js";
 
 const debug = Debug("browserglue").extend("channel");
 
@@ -67,9 +68,9 @@ class Channel {
   }
 
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-  publish(data: any): boolean {
+  publish(msg: OSC.Message | OSC.Bundle): boolean {
     if (!this._open) return false;
-    return this._client.publish(this.path, data);
+    return this._client.publish(this.path, msg);
   }
 
   async bindPort(port: number): Promise<boolean> {

@@ -295,17 +295,14 @@ class Server {
     if (!channel) return false;
 
     if (channel.port) {
-      if (channel.port === port) {
-        debug(`Channel %s socket already binded to %d`, path, port);
-        return false;
+      if (channel.port !== port) {
+        debug(
+          `Channel %s already has a binded port at %d. ` +
+            `Will re-create socket.`,
+          path,
+          channel.port
+        );
       }
-
-      debug(
-        `Channel %s already has a binded port at %d. ` +
-          `Will re-create socket.`,
-        path,
-        channel.port
-      );
       try {
         this._sockets[path].close();
       } catch (err) {
