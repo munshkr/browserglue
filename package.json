@@ -1,6 +1,6 @@
 {
   "name": "browserglue",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "Damián Silvani <munshkr@gmail.com>",
   "license": "AGPL-3.0-or-later",
   "description": "Exposes TCP/UDP connections to the browser through WebSockets",
