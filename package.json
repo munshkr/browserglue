@@ -54,6 +54,7 @@
     "express": "^4.17.1",
     "isomorphic-ws": "^4.0.1",
     "json-rpc-2.0": "^0.2.15",
+    "osc-js": "^2.3.0",
     "ws": "^7.4.3"
   },
   "optionalDependencies": {
